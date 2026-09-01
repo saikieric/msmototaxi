@@ -36,6 +36,27 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    // Passenger/driver apps share one codebase (see lib/flavors.dart),
+    // separated here by applicationId suffix + display name so both can be
+    // installed side by side on the same device.
+    //
+    // 乗客用・ドライバー用アプリは1つのコードベースを共有する（lib/flavors.dart参照）。
+    // ここではapplicationIdの接尾辞と表示名で分け、同一端末に両方を
+    // インストールできるようにしている。
+    flavorDimensions += "app"
+    productFlavors {
+        create("passenger") {
+            dimension = "app"
+            applicationIdSuffix = ".passenger"
+            manifestPlaceholders["appLabel"] = "MotoGo"
+        }
+        create("driver") {
+            dimension = "app"
+            applicationIdSuffix = ".driver"
+            manifestPlaceholders["appLabel"] = "MotoGo Driver"
+        }
+    }
 }
 
 kotlin {

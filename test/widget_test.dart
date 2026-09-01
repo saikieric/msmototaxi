@@ -1,30 +1,50 @@
-// This is a basic Flutter widget test.
+// Smoke test: with Supabase unconfigured (placeholder .env) and no signed-in
+// user, the app should land on the login screen without crashing.
 //
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// スモークテスト: Supabase 未設定（.env がプレースホルダー）かつ未ログイン状態でも、
+// クラッシュせずログイン画面が表示されることを確認する。
 
-import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:msmototaxi/main.dart';
+import 'package:msmototaxi/app.dart';
+import 'package:msmototaxi/flavors.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  setUpAll(() async {
+    // supabase_flutter persists the session via shared_preferences, which
+    // needs an in-memory mock under `flutter test` (no real platform plugin).
+    // supabase_flutter はセッションをshared_preferencesで永続化するため、
+    // `flutter test` 環境（実プラットフォームプラグインなし）ではインメモリの
+    // モックが必要。
+    SharedPreferences.setMockInitialValues({});
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // SupabaseConfig reads dotenv.env, so it must be initialized even
+    // though this test doesn't load a real .env file.
+    // SupabaseConfig は dotenv.env を参照するため、実際の .env を
+    // 読み込まない場合でも初期化しておく必要がある。
+    dotenv.testLoad(fileInput: '');
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    AppConfig.initialize(flavor: Flavor.passenger);
+    // Placeholder values — no network calls are made by this smoke test.
+    // ネットワーク通信は発生しないため、実際のプロジェクト値は不要。
+    await Supabase.initialize(
+      url: 'https://your-project-ref.supabase.co',
+      publishableKey: 'test-anon-key',
+    );
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('Shows the login screen on first launch', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      const ProviderScope(child: MotoGoApp()),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('MotoGo'), findsOneWidget);
+    expect(find.text('認証コードを送信'), findsOneWidget);
   });
 }
