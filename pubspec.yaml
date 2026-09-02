@@ -43,6 +43,10 @@ dependencies:
   go_router: ^14.8.1
   # State management
   flutter_riverpod: ^2.6.1
+  # Map display + ride-request UI (see slides.md "技術スタック")
+  google_maps_flutter: ^2.10.0
+  # Device location (pickup point)
+  geolocator: ^13.0.2
 
 dev_dependencies:
   flutter_test:

@@ -25,11 +25,46 @@ background and architecture.
    Supabase Dashboard > Project Settings > API). `.env` is gitignored.
 
    Supabaseプロジェクトがまだ無い場合、`.env` はプレースホルダー値のままでも
-   アプリは起動する（ログイン画面に「未接続」の案内が表示される）。
+   アプリは起動する。
    If no Supabase project exists yet, the app still runs with placeholder
-   values in `.env` — the login screen shows a "not connected" notice.
+   values in `.env`.
+
+3. Google Maps APIキーを設定 / Configure the Google Maps API key:
+
+   乗客用ホーム画面（地図＋配車依頼UI）はGoogle Maps SDKを使う。プラット
+   フォームごとにキーの置き場所が異なる（Supabaseの`.env`と違い、静的な
+   ネイティブ設定ファイルに直接書き込む必要がある）:
+   The passenger home screen (map + ride-request UI) uses the Google Maps
+   SDK. Unlike Supabase's `.env`, the key has to go into per-platform native
+   config files:
+
+   | プラットフォーム / Platform | ファイル / File | 備考 / Notes |
+   |---|---|---|
+   | Android | `android/local.properties`（`googleMaps.apiKey=`） | gitignore対象 / gitignored |
+   | iOS | `ios/Runner/AppDelegate.swift`（`GMSServices.provideAPIKey(...)`） | 現状ソースに直書き。Macでの本設定時にxcconfig等への切り出しを検討 / currently inline in source; consider moving to an untracked xcconfig when set up on a Mac |
+   | Web | `web/index.html`（`<script src="https://maps.googleapis.com/...">`） | 静的HTMLのためgit管理対象。Webオリジン制限をかけたキーを使うこと / committed to git since it's static HTML — use a key restricted to your web origin(s) |
+
+   Google Cloud Consoleで「APIとサービス > 認証情報」からAPIキーを発行し、
+   プラットフォームに応じて「Maps SDK for Android」「Maps SDK for iOS」
+   「Maps JavaScript API」を有効化する。
+   Get an API key from Google Cloud Console (APIs & Services > Credentials),
+   enabling "Maps SDK for Android" / "Maps SDK for iOS" / "Maps JavaScript
+   API" as appropriate.
 
 ## 実行 / Running
+
+### ログインについて（開発用バイパス） / About login (dev bypass)
+
+電話番号OTPログインは実装済み（[core/auth/auth_repository.dart](lib/core/auth/auth_repository.dart)）だが、Supabase
+Dashboard側のSMSプロバイダ設定がまだ済んでいないため、現在ログイン画面の
+「ログイン」ボタンは実認証をせず [core/auth/dev_auth_bypass.dart](lib/core/auth/dev_auth_bypass.dart) のフラグを
+立てるだけになっている。SMS認証を設定したら、この画面を実際の電話番号/OTP
+フローに戻すこと。
+Phone-OTP login is implemented ([core/auth/auth_repository.dart](lib/core/auth/auth_repository.dart)), but since the
+SMS provider isn't configured in the Supabase Dashboard yet, the login
+screen's button currently just flips a dev flag
+([core/auth/dev_auth_bypass.dart](lib/core/auth/dev_auth_bypass.dart)) instead of doing real auth. Once SMS auth is
+set up, switch the screen back to the real phone/OTP flow.
 
 flavorごとにエントリポイントが分かれている（`lib/main_passenger.dart` /
 `lib/main_driver.dart`）。`lib/main.dart` は開発時の簡便のため乗客用flavorの
@@ -91,16 +126,29 @@ flutter test
 
 ## 現在の状態 / Current status
 
-- [x] Flutter土台（flavor分離、ルーティング、電話番号OTPログイン画面、
-      乗客/ドライバーのホーム画面プレースホルダー）
-      Flutter foundation (flavor split, routing, phone-OTP login screen,
-      placeholder passenger/driver home screens)
-- [ ] Supabaseプロジェクトの作成・スキーマ設計（users, drivers, rides等）
-      Supabase project creation & schema design (users, drivers, rides, etc.)
-- [ ] PostGISによる位置情報検索・マッチングロジック（Edge Functions）
-      PostGIS-based location search & matching logic (Edge Functions)
-- [ ] 地図・ルート検索（Mapbox / Google Maps）の統合
-      Map & route search integration (Mapbox / Google Maps)
+- [x] Flutter土台（flavor分離、ルーティング、乗客/ドライバーのホーム画面）
+      Flutter foundation (flavor split, routing, passenger/driver home screens)
+- [x] Supabaseプロジェクト作成・DBスキーマ適用（profiles, driver_profiles,
+      driver_locations, rides + PostGIS + RLS + Realtime）。`sa-east-1`
+      （São Paulo）にてホスティング。
+      Supabase project created & DB schema applied (profiles,
+      driver_profiles, driver_locations, rides + PostGIS + RLS + Realtime).
+      Hosted in `sa-east-1` (São Paulo).
+- [x] 乗客用ホーム画面: Google Mapsで乗車地点（現在地/ドラッグ）・降車地点
+      （タップ）を選択するUI。配車依頼の送信自体はまだスタブ（下記参照）。
+      Passenger home screen: Google Maps UI to pick a pickup point (device
+      location / draggable) and dropoff point (tap). Actually submitting the
+      ride request is still stubbed (see below).
+- [ ] 電話番号OTP認証の本設定（Supabase DashboardでのSMSプロバイダ設定）。
+      現在はログインボタンで未認証のまま進む開発用バイパス状態
+      （上記「ログインについて」参照）。
+      Real phone-OTP auth setup (SMS provider in Supabase Dashboard). Login
+      currently uses a dev bypass that skips real auth (see "About login"
+      above).
+- [ ] 配車依頼の実データ書き込み・PostGISによるマッチングロジック
+      （Edge Functions）。実認証が前提のため上記と連動。
+      Actually writing ride requests & PostGIS-based matching logic (Edge
+      Functions). Depends on real auth above.
 - [ ] 決済（Pix経由）
       Payments (via Pix)
 - [ ] iOS flavor設定（Mac環境が必要）

@@ -7,9 +7,15 @@ import '../../features/driver/home/driver_home_screen.dart';
 import '../../features/passenger/home/passenger_home_screen.dart';
 import '../../flavors.dart';
 import '../auth/auth_state.dart';
+import '../auth/dev_auth_bypass.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authStateAsync = ref.watch(authStateProvider);
+  // TODO: dev-only bypass, see dev_auth_bypass.dart — remove once real
+  // phone-OTP sign-in is wired up end-to-end.
+  // TODO: 開発用バイパス（dev_auth_bypass.dart参照）。電話番号OTPログインが
+  // 本物として動くようになったら削除する。
+  final devBypass = ref.watch(devAuthBypassProvider);
   final flavor = AppConfig.instance.flavor;
   final homePath = switch (flavor) {
     Flavor.passenger => '/passenger',
@@ -25,7 +31,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (authStateAsync.isLoading) return null;
 
       final isSignedIn =
-          ref.read(currentUserProvider) != null;
+          ref.read(currentUserProvider) != null || devBypass;
       final isLoggingIn = state.matchedLocation == '/login';
 
       if (!isSignedIn && !isLoggingIn) return '/login';

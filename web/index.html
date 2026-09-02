@@ -31,6 +31,22 @@
 
   <title>msmototaxi</title>
   <link rel="manifest" href="manifest.json">
+
+  <!--
+    Google Maps JavaScript API (used by google_maps_flutter on web).
+    Replace YOUR_GOOGLE_MAPS_API_KEY_HERE with a real key from Google Cloud
+    Console (APIs & Services > Credentials, "Maps JavaScript API" enabled).
+    This file is static HTML, so — unlike .env / local.properties — the key
+    here IS committed to git; use a key restricted to your web origin(s).
+
+    Google Maps JavaScript API（webでgoogle_maps_flutterが使用）。
+    YOUR_GOOGLE_MAPS_API_KEY_HERE を Google Cloud Console
+    （APIとサービス > 認証情報、"Maps JavaScript API"を有効化）で取得した
+    実際のキーに置き換える。このファイルは静的HTMLのため、.env /
+    local.properties と違いキーがgit管理対象になる。Webオリジン制限を
+    かけたキーを使うこと。
+  -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY_HERE"></script>
 </head>
 <body>
   <!--

@@ -1,80 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/auth/auth_repository.dart';
-import '../../core/supabase/supabase_config.dart';
+import '../../core/auth/dev_auth_bypass.dart';
 import '../../flavors.dart';
 
-/// Phone-OTP sign-in screen, shared by both flavors.
-/// 両flavor共通の電話番号OTPログイン画面。
+/// Sign-in screen, shared by both flavors.
+/// 両flavor共通のログイン画面。
 ///
-/// Two steps: enter phone number -> enter the SMS code Supabase Auth sends.
-/// 2段階: 電話番号を入力 → Supabase Authが送るSMSコードを入力。
-class LoginScreen extends StatefulWidget {
+/// Real phone-OTP sign-in (see AuthRepository) is deferred for now — the
+/// button below just flips the dev-auth-bypass flag so the map/ride-request
+/// screens can be built and tested first. Swap this back to the real
+/// phone/OTP flow once SMS auth is configured in the Supabase Dashboard.
+///
+/// 実際の電話番号OTPログイン（AuthRepository参照）は後回し。下のボタンは
+/// 開発用バイパスフラグを立てるだけで、先に地図・配車依頼画面を作成・確認
+/// できるようにしている。Supabase DashboardでSMS認証を設定したら、
+/// 実際の電話番号/OTPフローに戻すこと。
+class LoginScreen extends ConsumerWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
-}
-
-enum _LoginStep { enterPhone, enterOtp }
-
-class _LoginScreenState extends State<LoginScreen> {
-  final _phoneController = TextEditingController();
-  final _otpController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
-
-  _LoginStep _step = _LoginStep.enterPhone;
-  bool _isSubmitting = false;
-  String? _errorMessage;
-
-  @override
-  void dispose() {
-    _phoneController.dispose();
-    _otpController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _sendOtp() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    setState(() {
-      _isSubmitting = true;
-      _errorMessage = null;
-    });
-    try {
-      await AuthRepository.instance.signInWithPhoneOtp(_phoneController.text);
-      if (!mounted) return;
-      setState(() => _step = _LoginStep.enterOtp);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _errorMessage = 'コードの送信に失敗しました: $e');
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
-  }
-
-  Future<void> _verifyOtp() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    setState(() {
-      _isSubmitting = true;
-      _errorMessage = null;
-    });
-    try {
-      await AuthRepository.instance.verifyPhoneOtp(
-        phone: _phoneController.text,
-        otp: _otpController.text,
-      );
-      // On success, the router's auth listener redirects automatically.
-      // 成功時はルーターの認証リスナーが自動的にリダイレクトする。
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _errorMessage = '認証コードが正しくありません: $e');
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final flavor = AppConfig.instance.flavor;
 
     return Scaffold(
@@ -84,137 +30,58 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 400),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Icon(
-                      flavor == Flavor.driver
-                          ? Icons.two_wheeler
-                          : Icons.motorcycle,
-                      size: 64,
-                      color: Theme.of(context).colorScheme.primary,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Icon(
+                    flavor == Flavor.driver
+                        ? Icons.two_wheeler
+                        : Icons.motorcycle,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    AppConfig.instance.appTitle,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    flavor == Flavor.driver ? 'ドライバー用アプリ' : '乗客用アプリ',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 32),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      AppConfig.instance.appTitle,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      flavor == Flavor.driver ? 'ドライバー用アプリ' : '乗客用アプリ',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 32),
-                    if (!SupabaseConfig.isConfigured) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.errorContainer,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Supabaseが未接続です。.env にプロジェクトのURLとanon keyを'
-                          '設定してください（.env.example参照）。',
-                          style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onErrorContainer,
-                          ),
-                        ),
+                    child: Text(
+                      '開発用: 電話番号認証は未設定のため、ボタンを押すと'
+                      '未認証のまま画面へ進みます。',
+                      style: TextStyle(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSecondaryContainer,
                       ),
-                      const SizedBox(height: 16),
-                    ],
-                    if (_step == _LoginStep.enterPhone) ..._buildPhoneStep(),
-                    if (_step == _LoginStep.enterOtp) ..._buildOtpStep(),
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        _errorMessage!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: () =>
+                        ref.read(devAuthBypassProvider.notifier).state = true,
+                    child: const Text('ログイン'),
+                  ),
+                ],
               ),
             ),
           ),
         ),
       ),
     );
-  }
-
-  List<Widget> _buildPhoneStep() {
-    return [
-      TextFormField(
-        controller: _phoneController,
-        keyboardType: TextInputType.phone,
-        decoration: const InputDecoration(
-          labelText: '電話番号',
-          hintText: '+5513999999999',
-          border: OutlineInputBorder(),
-        ),
-        validator: (value) {
-          if (value == null || value.trim().isEmpty) return '電話番号を入力してください';
-          if (!value.trim().startsWith('+')) {
-            return '国番号付き（例: +55...）で入力してください';
-          }
-          return null;
-        },
-      ),
-      const SizedBox(height: 16),
-      FilledButton(
-        onPressed: _isSubmitting ? null : _sendOtp,
-        child: _isSubmitting
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Text('認証コードを送信'),
-      ),
-    ];
-  }
-
-  List<Widget> _buildOtpStep() {
-    return [
-      TextFormField(
-        controller: _otpController,
-        keyboardType: TextInputType.number,
-        decoration: const InputDecoration(
-          labelText: 'SMSで届いた認証コード',
-          border: OutlineInputBorder(),
-        ),
-        validator: (value) {
-          if (value == null || value.trim().isEmpty) return 'コードを入力してください';
-          return null;
-        },
-      ),
-      const SizedBox(height: 16),
-      FilledButton(
-        onPressed: _isSubmitting ? null : _verifyOtp,
-        child: _isSubmitting
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Text('ログイン'),
-      ),
-      TextButton(
-        onPressed: _isSubmitting
-            ? null
-            : () => setState(() => _step = _LoginStep.enterPhone),
-        child: const Text('電話番号を変更する'),
-      ),
-    ];
   }
 }

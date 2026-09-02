@@ -1,8 +1,21 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Local, gitignored secrets (Google Maps API key etc.) — see local.properties.
+// ローカルの秘匿情報（Google Maps APIキー等）。local.properties参照。
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+val googleMapsApiKey: String =
+    localProperties.getProperty("googleMaps.apiKey") ?: "YOUR_GOOGLE_MAPS_API_KEY_HERE"
 
 android {
     namespace = "com.example.msmototaxi"
@@ -27,6 +40,8 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        manifestPlaceholders["googleMapsApiKey"] = googleMapsApiKey
     }
 
     buildTypes {

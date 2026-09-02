@@ -26,6 +26,10 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Pickup point uses the device's current location. -->
+	<!-- 乗車地点の初期値に現在地を使う。 -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>配車依頼の乗車地点を設定するために現在地を使用します。</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

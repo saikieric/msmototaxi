@@ -45,6 +45,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('MotoGo'), findsOneWidget);
-    expect(find.text('認証コードを送信'), findsOneWidget);
+    expect(find.text('ログイン'), findsOneWidget);
   });
 }

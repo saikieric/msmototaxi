@@ -1,8 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Pickup point uses the device's current location. -->
+    <!-- 乗車地点の初期値に現在地を使う。 -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
     <application
         android:label="${appLabel}"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- See local.properties (googleMaps.apiKey) / build.gradle.kts for
+             where this value comes from. -->
+        <!-- 値の出所は local.properties (googleMaps.apiKey) / build.gradle.kts 参照。 -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${googleMapsApiKey}" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
