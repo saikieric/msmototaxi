@@ -120,5 +120,10 @@ app.*.symbols
 *.iml
 .idea/
 
-# Local secrets (Supabase URL/anon key). Copy .env.example to .env and fill in.
+# Local secrets (Supabase URL/anon key, Google Maps API key). Copy
+# .env.example to .env and fill in.
 .env
+
+# Generated from web/index.html.template by tool/gen_web_index.sh — embeds
+# the Google Maps API key, so it's gitignored (unlike the template).
+web/index.html

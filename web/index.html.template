@@ -34,19 +34,22 @@
 
   <!--
     Google Maps JavaScript API (used by google_maps_flutter on web).
-    Replace YOUR_GOOGLE_MAPS_API_KEY_HERE with a real key from Google Cloud
-    Console (APIs & Services > Credentials, "Maps JavaScript API" enabled).
-    This file is static HTML, so — unlike .env / local.properties — the key
-    here IS committed to git; use a key restricted to your web origin(s).
+
+    This is a TEMPLATE (index.html.template), tracked in git with a
+    placeholder — the real key never gets committed. Run
+    `tool/gen_web_index.sh` (reads GOOGLE_MAPS_API_KEY from .env) to
+    generate the actual web/index.html, which is gitignored. Run it again
+    whenever you change the key in .env.
 
     Google Maps JavaScript API（webでgoogle_maps_flutterが使用）。
-    YOUR_GOOGLE_MAPS_API_KEY_HERE を Google Cloud Console
-    （APIとサービス > 認証情報、"Maps JavaScript API"を有効化）で取得した
-    実際のキーに置き換える。このファイルは静的HTMLのため、.env /
-    local.properties と違いキーがgit管理対象になる。Webオリジン制限を
-    かけたキーを使うこと。
+
+    これはテンプレート（index.html.template）。プレースホルダーのまま
+    gitに追跡され、実際のキーはコミットされない。`tool/gen_web_index.sh`
+    （.envのGOOGLE_MAPS_API_KEYを読む）を実行すると、実際に使われる
+    web/index.html（gitignore対象）が生成される。.envのキーを変更したら
+    再実行すること。
   -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY_HERE"></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key={{GOOGLE_MAPS_API_KEY}}"></script>
 </head>
 <body>
   <!--

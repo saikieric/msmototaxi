@@ -42,7 +42,7 @@ background and architecture.
    |---|---|---|
    | Android | `android/local.properties`（`googleMaps.apiKey=`） | gitignore対象 / gitignored |
    | iOS | `ios/Runner/AppDelegate.swift`（`GMSServices.provideAPIKey(...)`） | 現状ソースに直書き。Macでの本設定時にxcconfig等への切り出しを検討 / currently inline in source; consider moving to an untracked xcconfig when set up on a Mac |
-   | Web | `web/index.html`（`<script src="https://maps.googleapis.com/...">`） | 静的HTMLのためgit管理対象。Webオリジン制限をかけたキーを使うこと / committed to git since it's static HTML — use a key restricted to your web origin(s) |
+   | Web | `.env` の `GOOGLE_MAPS_API_KEY` から `web/index.html` を生成 | 下記参照 / see below |
 
    Google Cloud Consoleで「APIとサービス > 認証情報」からAPIキーを発行し、
    プラットフォームに応じて「Maps SDK for Android」「Maps SDK for iOS」
@@ -50,6 +50,26 @@ background and architecture.
    Get an API key from Google Cloud Console (APIs & Services > Credentials),
    enabling "Maps SDK for Android" / "Maps SDK for iOS" / "Maps JavaScript
    API" as appropriate.
+
+   **Web版について** — `web/index.html` は静的HTMLでビルド時の変数展開が
+   できないため、`.env`から直接読ませることができない。代わりに
+   `web/index.html.template`（プレースホルダー入り、git管理対象）から、
+   `.env`の`GOOGLE_MAPS_API_KEY`を埋め込んだ`web/index.html`（gitignore
+   対象、実際のキーが入る）を生成するスクリプトを用意している:
+   **About the web build** — `web/index.html` is static HTML with no
+   build-time variable substitution, so it can't read `.env` directly.
+   Instead, `web/index.html.template` (placeholder, tracked in git) is used
+   to generate the real `web/index.html` (gitignored, has the real key) via
+   a script:
+   ```
+   # Requires .env with GOOGLE_MAPS_API_KEY set. Re-run whenever that
+   # value changes. Run in Git Bash (or any bash) — see tool/gen_web_index.sh.
+   # GOOGLE_MAPS_API_KEYを設定した.envが必要。値を変更したら再実行すること。
+   # Git Bash等のbashで実行（tool/gen_web_index.sh参照）。
+   bash tool/gen_web_index.sh
+   ```
+   `flutter run -d chrome` / `flutter build web` の前に一度実行しておく。
+   Run this once before `flutter run -d chrome` / `flutter build web`.
 
 ## 実行 / Running
 
