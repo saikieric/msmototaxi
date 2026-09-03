@@ -1,17 +1,19 @@
 ---
 name: project-conventions
-description: Directory layout and coding/doc style conventions for the MotoGo project (msmototaxi) — where new code/files go, the bilingual (English+Japanese) comment convention, naming patterns, and how the .claude/skills/ directory itself is organized. Use when asked where to put a new file/feature, what style to follow, how this project is organized, or when creating a new SKILL.md for this project.
+description: Directory layout conventions for the MotoGo project (msmototaxi) — where new code/files go, naming patterns, and how the .claude/skills/ directory itself is organized. See the bilingual-comments skill for the comment-style rule. Use when asked where to put a new file/feature, how this project is organized, or when creating a new SKILL.md for this project.
 ---
 
 Reference only — no commands to run. For actual build/test/migration
 commands, see [run-msmototaxi](../run-msmototaxi/SKILL.md),
 [flutter-check](../flutter-check/SKILL.md), and
-[supabase-migrate](../supabase-migrate/SKILL.md).
+[supabase-migrate](../supabase-migrate/SKILL.md). For the comment-style
+rule, see [bilingual-comments](../bilingual-comments/SKILL.md).
 
 参照専用 — 実行コマンドは無い。ビルド/テスト/マイグレーションの実際の
 コマンドは [run-msmototaxi](../run-msmototaxi/SKILL.md)、
 [flutter-check](../flutter-check/SKILL.md)、
-[supabase-migrate](../supabase-migrate/SKILL.md) を参照。
+[supabase-migrate](../supabase-migrate/SKILL.md) を参照。コメントスタイルの
+規約は [bilingual-comments](../bilingual-comments/SKILL.md) を参照。
 
 ## Repo layout / リポジトリ構成
 
@@ -79,47 +81,13 @@ goes in `core/`, not `features/`.
 
 ## Style: bilingual comments (English + Japanese) / スタイル: 英語＋日本語併記コメント
 
-Every doc comment (`///`), file-level comment, and non-trivial inline
-comment (`//`) in this codebase is written **twice**: an English
-paragraph/sentence, immediately followed by its Japanese translation.
-This applies to Dart doc comments, SQL migration comments, shell script
-headers, and `SKILL.md` prose alike. See any file under `lib/` — e.g.
-`lib/flavors.dart` or `lib/core/auth/dev_auth_bypass.dart` — for the
-established shape:
+Every comment in this codebase is written in both English and Japanese
+together — see the dedicated [bilingual-comments](../bilingual-comments/SKILL.md)
+skill for the exact rule, examples, and what stays English/Japanese-only.
 
-```dart
-/// English sentence explaining what this is.
-/// 日本語訳。
-///
-/// A second English paragraph with more detail.
-/// より詳しい説明の日本語訳。
-```
-
-- Code identifiers themselves (class/function/variable names, enum
-  values) stay English-only — bilingual applies to *prose*, not to code.
-- User-facing UI strings are Japanese-only (this is a Japanese-market app
-  for Registro, Brazil — see slides.md) — they are not bilingual pairs.
-- Commit messages are English-only (see `git log`).
-- This convention was adopted partway through the project (see the
-  bilingual-SKILL.md commit) — if you find an older English-only comment,
-  it's a gap to fill when you're already touching that code, not
-  something to hunt down separately.
-
-このコードベースのすべてのドキュメントコメント（`///`）、ファイル冒頭
-コメント、自明でないインラインコメント（`//`）は**2回書く**:
-英語の段落/文の直後に、その日本語訳を続ける。これはDartのdocコメント、
-SQLマイグレーションのコメント、シェルスクリプトのヘッダー、`SKILL.md`の
-本文すべてに当てはまる。定着した形は `lib/` 配下の任意のファイル
-（例: `lib/flavors.dart`、`lib/core/auth/dev_auth_bypass.dart`）を参照。
-
-- コード識別子自体（クラス名・関数名・変数名・enum値）は英語のみ —
-  併記の対象は「文章」であって「コード」ではない。
-- ユーザー向けUI文言は日本語のみ（ブラジル・Registro向けの日本語市場
-  アプリ — slides.md参照）— これらは英日ペアにしない。
-- コミットメッセージは英語のみ（`git log` 参照）。
-- この規約はプロジェクト途中から採用した（bilingual-SKILL.mdのコミット
-  参照）— 古い英語のみのコメントを見つけても、それは別途探して直す
-  対象ではなく、たまたまそのコードを触った時に直せばよい程度のもの。
+このコードベースのすべてのコメントは英語と日本語を同時に併記する —
+正確なルール・例・英語/日本語のみのままにするものは専用スキル
+[bilingual-comments](../bilingual-comments/SKILL.md) を参照。
 
 ## Style: SQL migrations / スタイル: SQLマイグレーション
 
@@ -140,7 +108,8 @@ example.
 
 ```
 .claude/skills/
-  project-conventions/SKILL.md   <- this file: layout + style reference (no commands)
+  project-conventions/SKILL.md   <- this file: directory layout reference (no commands)
+  bilingual-comments/SKILL.md    <- the English+Japanese comment rule (no commands)
   run-msmototaxi/                <- build/serve/drive+screenshot the app (has a driver.mjs + its own node_modules)
   flutter-check/SKILL.md         <- flutter analyze + flutter test
   supabase-migrate/SKILL.md      <- create/apply DB migrations
