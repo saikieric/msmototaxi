@@ -15,11 +15,22 @@ region `sa-east-1` / São Paulo), already linked in `supabase/config.toml` and
 are applied with the Supabase CLI — there's no separate ORM or migration
 runner.
 
-## Prerequisites
+このプロジェクトのSupabaseプロジェクトは `msmototaxi-sp`（ref
+`abjwfyzwveaeyaetpumb`、リージョン `sa-east-1` / São Paulo）で、
+`supabase/config.toml` と `supabase/.temp/project-ref` に既にリンク済み。
+マイグレーションは `supabase/migrations/` に置かれ、Supabase CLIで適用する
+（別途ORMやマイグレーションランナーは無い）。
+
+## Prerequisites / 前提条件
 
 - **Supabase CLI must be installed and logged in.** Verified working here via:
   ```bash
   npm install -g supabase   # if `supabase --version` fails
+  ```
+  **Supabase CLIがインストール済みでログイン済みであること。** 動作確認済みの
+  導入方法（`supabase --version` が失敗する場合）:
+  ```bash
+  npm install -g supabase
   ```
 - **The CLI login session does NOT persist across shells in this
   environment** — a `supabase db push` in a fresh shell will fail with
@@ -32,7 +43,18 @@ runner.
   user for one if you don't have it — it's a credential, treat it like a
   password, never commit it or put it in a file tracked by git).
 
-## Check current sync status (safe, read-only)
+  **この環境ではCLIのログインセッションはシェルをまたいで永続化されない。**
+  同じ会話の中で以前 `supabase login` に成功していても、新しいシェルでの
+  `supabase db push` は `LegacyPlatformAuthRequiredError` で失敗する。
+  必ず先に再ログインすること:
+  ```bash
+  supabase login --token <personal-access-token> --name "msmototaxi-dev"
+  ```
+  トークンは https://supabase.com/dashboard/account/tokens で発行する
+  （手元に無ければユーザーに依頼する — 認証情報なのでパスワード同様に扱い、
+  絶対にコミットしたりgit管理下のファイルに書いたりしないこと）。
+
+## Check current sync status (safe, read-only) / 同期状態の確認（安全・読み取り専用）
 
 ```bash
 cd msmototaxi
@@ -42,7 +64,10 @@ supabase db push --dry-run   # prints what WOULD be applied, without touching th
 Both verified working in this environment; `db push --dry-run` printed
 `"Remote database is up to date."` when local and remote already matched.
 
-## Create a new migration
+いずれもこの環境で動作確認済み。ローカルとリモートが一致している場合、
+`db push --dry-run` は `"Remote database is up to date."` と出力した。
+
+## Create a new migration / 新しいマイグレーションの作成
 
 ```bash
 cd msmototaxi
@@ -58,7 +83,16 @@ Then write the SQL by hand in that file. Follow the style of the existing
 - If the table needs live updates on the client, add it to the realtime
   publication: `alter publication supabase_realtime add table public.<table>;`
 
-## Apply migrations
+生成されたファイルにSQLを手書きする。既存の
+`supabase/migrations/20260901155514_init_schema.sql` のスタイルに合わせる:
+- 全テーブル・全ポリシーに英語＋日本語の併記コメントを付ける（このコードベース
+  全体の慣習に合わせる）
+- 新しいテーブルは必ずRLSを有効化し、明示的なポリシーを追加する
+  （RLS無効のまま放置しない）
+- クライアント側でリアルタイム更新が必要なテーブルは、realtime publicationに
+  追加する: `alter publication supabase_realtime add table public.<table>;`
+
+## Apply migrations / マイグレーションの適用
 
 ```bash
 cd msmototaxi
@@ -73,7 +107,15 @@ the project has real user data (currently it doesn't — see project status).
 After pushing, confirm with `supabase migration list` that `local` and
 `remote` timestamps now match.
 
-## Verifying a migration actually worked (beyond the CLI's own success message)
+ローカルにあってリモートに未反映のマイグレーションを適用する。これは
+**dry runではない** — 実際に本番DBを変更する。特に実データが入り始めた後は、
+先に `supabase db push --dry-run` で内容を確認することを推奨する
+（現時点ではまだ実データは無い）。
+
+適用後は `supabase migration list` で `local` と `remote` のタイムスタンプが
+一致したことを確認する。
+
+## Verifying a migration actually worked / マイグレーションが実際に機能したかの確認
 
 The CLI's success message only means the SQL executed without error — it
 doesn't confirm the resulting schema does what you intended. Spot-check via
@@ -86,25 +128,60 @@ An empty `[]` with HTTP 200 means the table exists and RLS allowed the
 anon-key read (or denied it gracefully) — an error body means something's
 wrong (typo'd table/column name, RLS misconfigured, etc.).
 
-## Gotchas
+CLIの成功メッセージは「SQLがエラー無く実行された」ことしか意味せず、
+意図通りのスキーマになったかまでは保証しない。`.env` のanon/publishable
+keyを使ってREST API経由で簡易確認するとよい（上記curlコマンド参照）。
+空配列 `[]` とHTTP 200が返れば、テーブルが存在しanon keyでの読み取りが
+許可（または適切に拒否）されている。エラー本文が返る場合は何か問題がある
+（テーブル名/カラム名の誤字、RLS設定ミスなど）。
+
+## Gotchas / 落とし穴
 
 - **Login doesn't persist between shells.** See Prerequisites — this bit
   every push in testing here. Don't assume a `supabase login` from earlier
   in the conversation is still active; re-login defensively before any
   write operation (`db push`).
+
+  **ログインはシェルをまたいで永続化されない。** 前提条件の項目参照。
+  この環境での検証中、毎回のpushでこれに引っかかった。会話の前の方で
+  `supabase login` していても有効とは限らないので、書き込み操作
+  （`db push`）の前は念のため必ず再ログインすること。
+
 - **`--size` on `supabase projects create` fails on free-plan orgs** with
   `"Instance size cannot be specified for free plan organizations."` — not
   directly migration-related, but relevant if this skill is ever extended
   to spin up a fresh project; omit `--size` entirely.
+
+  **無料プランの組織では `supabase projects create` の `--size` 指定が
+  失敗する**（`"Instance size cannot be specified for free plan
+  organizations."`）。マイグレーションと直接関係は無いが、このスキルを
+  新規プロジェクト作成にまで拡張する場合は関係するので、`--size` は
+  完全に省略すること。
+
 - **Supabase project region is immutable.** If a schema change is
   fundamental enough that you're tempted to recreate the project (e.g. to
   fix a region mistake), that's a `supabase projects create` + full
   migration replay, not a migration itself. This project is already in
   `sa-east-1` (São Paulo) — don't recreate it without the user's explicit
   sign-off first.
+
+  **Supabaseプロジェクトのリージョンは作成後に変更できない。**
+  リージョンを直すためにプロジェクトを作り直したくなるほどの根本的な
+  変更が必要な場合、それはマイグレーションではなく
+  `supabase projects create` ＋ 全マイグレーションの再適用になる。
+  このプロジェクトは既に `sa-east-1`（São Paulo）にあるので、
+  ユーザーの明示的な同意無しに作り直さないこと。
+
 - **`.env`'s `SUPABASE_ANON_KEY`** in this project is the newer
   `sb_publishable_...`-style key, passed to `supabase_flutter` as
   `publishableKey:` (not the deprecated `anonKey:` param) — see
   `lib/core/supabase/supabase_config.dart`. Doesn't affect migrations
   directly, but matters if a migration verification curl uses the wrong
   key style.
+
+  **`.env` の `SUPABASE_ANON_KEY`** は、このプロジェクトでは新方式の
+  `sb_publishable_...` 形式のキーで、`supabase_flutter` へは
+  （非推奨の `anonKey:` ではなく）`publishableKey:` として渡している
+  （`lib/core/supabase/supabase_config.dart` 参照）。マイグレーション自体には
+  直接影響しないが、マイグレーション確認用のcurlで誤った形式のキーを
+  使わないよう注意。

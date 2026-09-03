@@ -9,7 +9,7 @@ directory containing `pubspec.yaml`).
 すべてのパスは `msmototaxi/`（`pubspec.yaml` があるこのプロジェクトの
 ルート）からの相対パス。
 
-## Prerequisites
+## Prerequisites / 前提条件
 
 Flutter is installed at `/c/flutter/bin` but is **not on PATH** in the Bash
 tool's shell — prefix every command with:
@@ -17,7 +17,13 @@ tool's shell — prefix every command with:
 export PATH="$PATH:/c/flutter/bin"
 ```
 
-## Run
+Flutterは `/c/flutter/bin` にインストールされているが、Bashツールの
+シェルでは**PATHに入っていない** — 毎回コマンドの前に付ける:
+```bash
+export PATH="$PATH:/c/flutter/bin"
+```
+
+## Run / 実行
 
 ```bash
 export PATH="$PATH:/c/flutter/bin"
@@ -36,12 +42,28 @@ Run both every time — `analyze` catches type/lint issues `test` won't, and
 vice versa. Report exact output (pass/fail counts, error text) rather than
 summarizing "it works."
 
-## Gotchas
+この環境で動作確認済み: `flutter analyze` → `No issues found!`、
+`flutter test` → `1/1 passed`（`test/widget_test.dart` — Supabaseを
+モック初期化してログイン画面を描画するスモークテスト。`Supabase.initialize`
+の前に `SharedPreferences.setMockInitialValues` と `dotenv.testLoad` が
+なぜ必要かはファイル自体を参照）。
+
+毎回両方とも実行すること — `analyze` は `test` では拾えない型/lintの
+問題を検出し、その逆もある。「動きました」と要約せず、実際の出力
+（成功/失敗件数、エラー文言）をそのまま報告すること。
+
+## Gotchas / 落とし穴
 
 - **`flutter: command not found`** even though Flutter is installed — the
   Bash tool's shell doesn't inherit the same PATH as a normal terminal
   here. Always `export PATH="$PATH:/c/flutter/bin"` first, every fresh
   shell — it does not persist between separate Bash tool invocations.
+
+  Flutterがインストール済みなのに**`flutter: command not found`**になる
+  — Bashツールのシェルは通常のターミナルと同じPATHを引き継がない。
+  新しいシェルのたびに必ず先に `export PATH="$PATH:/c/flutter/bin"`
+  すること — Bashツールの呼び出しをまたいで永続化されない。
+
 - If `flutter test` fails with `MissingPluginException` on
   `shared_preferences` or `NotInitializedError` on `dotenv.env`, that's
   `test/widget_test.dart`'s `setUpAll` not running (or having been edited
@@ -49,3 +71,12 @@ summarizing "it works."
   `SharedPreferences.setMockInitialValues({})` and `dotenv.testLoad(...)`
   before `Supabase.initialize` under `flutter test`, since there's no real
   platform plugin or `.env` asset available in that environment.
+
+  `flutter test` が `shared_preferences` の `MissingPluginException` や
+  `dotenv.env` の `NotInitializedError` で失敗する場合、
+  `test/widget_test.dart` の `setUpAll` が実行されていない（または
+  モック部分が編集で消えている）ことが原因 — `flutter test` 環境には
+  実プラットフォームプラグインも `.env` アセットも無いため、
+  `supabase_flutter` を使うには `Supabase.initialize` の前に
+  `SharedPreferences.setMockInitialValues({})` と `dotenv.testLoad(...)`
+  の両方が必要。
