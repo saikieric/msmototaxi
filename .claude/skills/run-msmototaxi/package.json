@@ -1,0 +1,9 @@
+{
+  "name": "run-msmototaxi-driver",
+  "private": true,
+  "type": "module",
+  "description": "Playwright driver for the run-msmototaxi skill (see SKILL.md). Not part of the Flutter app itself.",
+  "dependencies": {
+    "playwright": "1.62.1"
+  }
+}
