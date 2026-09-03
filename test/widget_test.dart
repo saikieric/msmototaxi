@@ -4,15 +4,20 @@
 // スモークテスト: Supabase 未設定（.env がプレースホルダー）かつ未ログイン状態でも、
 // クラッシュせずログイン画面が表示されることを確認する。
 
+import 'dart:ui';
+
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:msmototaxi/app.dart';
+import 'package:msmototaxi/core/locale/locale_controller.dart';
 import 'package:msmototaxi/flavors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
+  late SharedPreferences prefs;
+
   setUpAll(() async {
     // supabase_flutter persists the session via shared_preferences, which
     // needs an in-memory mock under `flutter test` (no real platform plugin).
@@ -20,6 +25,7 @@ void main() {
     // `flutter test` 環境（実プラットフォームプラグインなし）ではインメモリの
     // モックが必要。
     SharedPreferences.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
 
     // SupabaseConfig reads dotenv.env, so it must be initialized even
     // though this test doesn't load a real .env file.
@@ -40,7 +46,20 @@ void main() {
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(
-      const ProviderScope(child: MotoGoApp()),
+      ProviderScope(
+        overrides: [
+          // Force a locale so the assertion below doesn't depend on the
+          // test runner's own default locale (usually en_US, which this
+          // app doesn't ship a translation for).
+          // 下のアサーションがテストランナー自体のデフォルト言語
+          // （通常en_US。このアプリは対応翻訳を持たない）に依存しないよう、
+          // 言語を固定する。
+          localeControllerProvider.overrideWith(
+            () => LocaleController(prefs, const Locale('ja')),
+          ),
+        ],
+        child: const MotoGoApp(),
+      ),
     );
     await tester.pumpAndSettle();
 

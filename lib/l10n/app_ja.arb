@@ -1,0 +1,36 @@
+{
+  "@@locale": "ja",
+
+  "appTitlePassenger": "MotoGo",
+  "appTitleDriver": "MotoGo ドライバー",
+
+  "logoutTooltip": "ログアウト",
+
+  "languageSwitcherTooltip": "言語",
+  "languageOptionSystem": "自動（端末の言語設定）",
+
+  "loginPassengerSubtitle": "乗客用アプリ",
+  "loginDriverSubtitle": "ドライバー用アプリ",
+  "loginDevBypassBanner": "開発用: 電話番号認証は未設定のため、ボタンを押すと未認証のまま画面へ進みます。",
+  "loginButton": "ログイン",
+
+  "passengerGettingCurrentLocation": "現在地を取得しています…",
+  "passengerLocationServiceDisabled": "位置情報サービスが無効です",
+  "passengerLocationPermissionDenied": "位置情報の権限が許可されていません",
+  "passengerLocationFetchFailed": "現在地の取得に失敗しました: {error}",
+  "passengerTapMapToPickPickupHint": "地図をタップして乗車地点を選ぶこともできます。",
+  "passengerPickupMarkerTitle": "乗車地点",
+  "passengerDropoffMarkerTitle": "降車地点",
+  "passengerBackToPickupTooltip": "乗車地点に戻る",
+  "passengerPickupNotSet": "乗車地点: 未設定",
+  "passengerPickupSet": "乗車地点: 設定済み",
+  "passengerDropoffNotSet": "降車地点: 地図をタップして選択",
+  "passengerDropoffSet": "降車地点: 設定済み",
+  "passengerRequestRideButton": "配車を依頼する",
+  "passengerRequestRideStubMessage": "配車依頼機能は準備中です（認証・マッチング実装後に対応）",
+
+  "driverOnlineStatus": "オンライン（依頼を受付中）",
+  "driverOfflineStatus": "オフライン",
+  "driverWaitingForRequests": "依頼を待っています…",
+  "driverGoOnlineToReceiveRequests": "オンラインにすると依頼を受け取れます"
+}

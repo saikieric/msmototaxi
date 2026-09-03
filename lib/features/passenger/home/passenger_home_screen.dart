@@ -5,6 +5,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/auth/auth_repository.dart';
 import '../../../core/auth/dev_auth_bypass.dart';
+import '../../../core/locale/language_switcher_button.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 /// Registro, SP city center — used as the default map camera position
 /// before the device's actual location is available (or if it's denied).
@@ -16,8 +18,8 @@ const _registroCityCenter = LatLng(-24.4950, -47.8433);
 /// 乗客用ホーム画面: 配車依頼を出すための地図。
 ///
 /// Flow: pickup defaults to the device's current location (draggable);
-/// tapping the map sets the dropoff point. "配車を依頼する" is enabled once
-/// both are set.
+/// tapping the map sets the dropoff point. The request button is enabled
+/// once both are set.
 ///
 /// Actually creating the ride (writing to Supabase `rides`) is still a stub
 /// — it needs a real signed-in user (RLS requires auth.uid() = passenger_id)
@@ -25,7 +27,7 @@ const _registroCityCenter = LatLng(-24.4950, -47.8433);
 /// dev_auth_bypass.dart for why login is currently skippable.
 ///
 /// フロー: 乗車地点はデフォルトで現在地（ドラッグ可能）。地図をタップすると
-/// 降車地点を設定。両方設定されると「配車を依頼する」が有効になる。
+/// 降車地点を設定。両方設定されると依頼ボタンが有効になる。
 ///
 /// 実際の配車依頼作成（Supabaseの`rides`への書き込み）はまだスタブ。
 /// RLSが auth.uid() = passenger_id を要求するため実際のログインユーザーが
@@ -44,7 +46,13 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   LatLng? _pickupLocation;
   LatLng? _dropoffLocation;
   bool _isLocatingDevice = true;
-  String? _locationError;
+  // Stores which error occurred (not the localized message itself) so the
+  // message can be rebuilt in the current language if it changes while the
+  // banner is showing (e.g. user switches language via LanguageSwitcherButton).
+  // 表示するローカライズ済みメッセージそのものではなく、発生したエラーの
+  // 種類を保持する。これにより、バナー表示中に言語が切り替わっても
+  // （例: LanguageSwitcherButton経由）現在の言語でメッセージを組み直せる。
+  _LocationError? _locationError;
 
   @override
   void initState() {
@@ -61,7 +69,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   Future<void> _initPickupFromDeviceLocation() async {
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
-        throw const _LocationUnavailable('位置情報サービスが無効です');
+        throw const _LocationError.serviceDisabled();
       }
 
       var permission = await Geolocator.checkPermission();
@@ -70,7 +78,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
       }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
-        throw const _LocationUnavailable('位置情報の権限が許可されていません');
+        throw const _LocationError.permissionDenied();
       }
 
       final position = await Geolocator.getCurrentPosition();
@@ -82,16 +90,16 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
       _mapController?.animateCamera(
         CameraUpdate.newLatLngZoom(_pickupLocation!, 15),
       );
-    } on _LocationUnavailable catch (e) {
+    } on _LocationError catch (e) {
       if (!mounted) return;
       setState(() {
-        _locationError = e.message;
+        _locationError = e;
         _isLocatingDevice = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _locationError = '現在地の取得に失敗しました: $e';
+        _locationError = _LocationError.other(e.toString());
         _isLocatingDevice = false;
       });
     }
@@ -111,19 +119,19 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   }
 
   void _requestRide() {
+    final l10n = AppLocalizations.of(context)!;
     // TODO: Insert into Supabase `rides` once real auth + the matching Edge
     // Function exist (see class doc comment above).
     // TODO: 実認証とマッチング用Edge Functionが揃ったら、Supabaseの
     // `rides` へ実際に書き込む（クラスのdocコメント参照）。
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('配車依頼機能は準備中です（認証・マッチング実装後に対応）'),
-      ),
+      SnackBar(content: Text(l10n.passengerRequestRideStubMessage)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final markers = <Marker>{
       if (_pickupLocation != null)
         Marker(
@@ -134,24 +142,25 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
           icon: BitmapDescriptor.defaultMarkerWithHue(
             BitmapDescriptor.hueGreen,
           ),
-          infoWindow: const InfoWindow(title: '乗車地点'),
+          infoWindow: InfoWindow(title: l10n.passengerPickupMarkerTitle),
         ),
       if (_dropoffLocation != null)
         Marker(
           markerId: const MarkerId('dropoff'),
           position: _dropoffLocation!,
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-          infoWindow: const InfoWindow(title: '降車地点'),
+          infoWindow: InfoWindow(title: l10n.passengerDropoffMarkerTitle),
         ),
     };
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MotoGo'),
+        title: Text(l10n.appTitlePassenger),
         actions: [
+          const LanguageSwitcherButton(),
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: 'ログアウト',
+            tooltip: l10n.logoutTooltip,
             onPressed: _signOut,
           ),
         ],
@@ -170,21 +179,13 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
             zoomControlsEnabled: false,
           ),
           if (_isLocatingDevice)
-            const Positioned(
-              top: 16,
-              left: 16,
-              right: 16,
-              child: _InfoBanner(message: '現在地を取得しています…'),
-            ),
+            _InfoBanner(message: l10n.passengerGettingCurrentLocation),
           if (_locationError != null)
-            Positioned(
-              top: 16,
-              left: 16,
-              right: 16,
-              child: _InfoBanner(
-                message: '$_locationError\n地図をタップして乗車地点を選ぶこともできます。',
-                isError: true,
-              ),
+            _InfoBanner(
+              message:
+                  '${_locationError!.localizedMessage(l10n)}\n'
+                  '${l10n.passengerTapMapToPickPickupHint}',
+              isError: true,
             ),
           Positioned(
             right: 16,
@@ -195,7 +196,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
                   : () => _mapController?.animateCamera(
                       CameraUpdate.newLatLng(_pickupLocation!),
                     ),
-              tooltip: '乗車地点に戻る',
+              tooltip: l10n.passengerBackToPickupTooltip,
               child: const Icon(Icons.my_location),
             ),
           ),
@@ -214,15 +215,17 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
                     _RideStatusLine(
                       icon: Icons.circle,
                       color: Colors.green,
-                      label: _pickupLocation == null ? '乗車地点: 未設定' : '乗車地点: 設定済み',
+                      label: _pickupLocation == null
+                          ? l10n.passengerPickupNotSet
+                          : l10n.passengerPickupSet,
                     ),
                     const SizedBox(height: 4),
                     _RideStatusLine(
                       icon: Icons.location_on,
                       color: Colors.red,
                       label: _dropoffLocation == null
-                          ? '降車地点: 地図をタップして選択'
-                          : '降車地点: 設定済み',
+                          ? l10n.passengerDropoffNotSet
+                          : l10n.passengerDropoffSet,
                     ),
                     const SizedBox(height: 12),
                     FilledButton.icon(
@@ -231,7 +234,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
                           ? _requestRide
                           : null,
                       icon: const Icon(Icons.motorcycle),
-                      label: const Text('配車を依頼する'),
+                      label: Text(l10n.passengerRequestRideButton),
                     ),
                   ],
                 ),
@@ -276,16 +279,21 @@ class _InfoBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      elevation: 2,
-      borderRadius: BorderRadius.circular(8),
-      color: isError ? colorScheme.errorContainer : colorScheme.surface,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Text(
-          message,
-          style: TextStyle(
-            color: isError ? colorScheme.onErrorContainer : null,
+    return Positioned(
+      top: 16,
+      left: 16,
+      right: 16,
+      child: Material(
+        elevation: 2,
+        borderRadius: BorderRadius.circular(8),
+        color: isError ? colorScheme.errorContainer : colorScheme.surface,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Text(
+            message,
+            style: TextStyle(
+              color: isError ? colorScheme.onErrorContainer : null,
+            ),
           ),
         ),
       ),
@@ -293,7 +301,36 @@ class _InfoBanner extends StatelessWidget {
   }
 }
 
-class _LocationUnavailable {
-  const _LocationUnavailable(this.message);
-  final String message;
+/// Which location failure occurred, kept as data (not a pre-built message)
+/// so it can be localized lazily in `build()` — see the field doc comment
+/// on `_PassengerHomeScreenState._locationError`.
+/// どの位置情報エラーが発生したかをデータとして保持する（構築済みの
+/// メッセージ文字列としてではなく）。これにより `build()` 内で遅延的に
+/// ローカライズできる —
+/// `_PassengerHomeScreenState._locationError` のdocコメント参照。
+sealed class _LocationError {
+  const _LocationError();
+
+  const factory _LocationError.serviceDisabled() = _ServiceDisabled;
+  const factory _LocationError.permissionDenied() = _PermissionDenied;
+  const factory _LocationError.other(String detail) = _Other;
+
+  String localizedMessage(AppLocalizations l10n) => switch (this) {
+    _ServiceDisabled() => l10n.passengerLocationServiceDisabled,
+    _PermissionDenied() => l10n.passengerLocationPermissionDenied,
+    _Other(:final detail) => l10n.passengerLocationFetchFailed(detail),
+  };
+}
+
+class _ServiceDisabled extends _LocationError {
+  const _ServiceDisabled();
+}
+
+class _PermissionDenied extends _LocationError {
+  const _PermissionDenied();
+}
+
+class _Other extends _LocationError {
+  const _Other(this.detail);
+  final String detail;
 }

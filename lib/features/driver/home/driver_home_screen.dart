@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/auth_repository.dart';
 import '../../../core/auth/dev_auth_bypass.dart';
+import '../../../core/locale/language_switcher_button.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 /// Driver home screen.
 /// ドライバー用ホーム画面。
@@ -36,13 +38,16 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MotoGo ドライバー'),
+        title: Text(l10n.appTitleDriver),
         actions: [
+          const LanguageSwitcherButton(),
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: 'ログアウト',
+            tooltip: l10n.logoutTooltip,
             onPressed: _signOut,
           ),
         ],
@@ -64,7 +69,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  _isOnline ? 'オンライン（依頼を受付中）' : 'オフライン',
+                  _isOnline ? l10n.driverOnlineStatus : l10n.driverOfflineStatus,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
@@ -93,7 +98,9 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _isOnline ? '依頼を待っています…' : 'オンラインにすると依頼を受け取れます',
+                    _isOnline
+                        ? l10n.driverWaitingForRequests
+                        : l10n.driverGoOnlineToReceiveRequests,
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.outline,
                     ),

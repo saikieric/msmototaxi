@@ -1,0 +1,16 @@
+# Configures `flutter gen-l10n` (run automatically by `flutter pub get` /
+# `flutter run` / `flutter build` since pubspec.yaml has `generate: true`).
+# `flutter gen-l10n`（pubspec.yamlの`generate: true`により
+# `flutter pub get`/`flutter run`/`flutter build`時に自動実行される）の設定。
+#
+# Template locale is pt (Brazilian Portuguese) — the default/fallback
+# language for end users in Registro, SP. See lib/l10n/app_ja.arb for the
+# Japanese translation and core/locale/ for how the active locale is chosen.
+# テンプレート言語はpt（ブラジルポルトガル語）— Registro市のエンドユーザー
+# 向けのデフォルト/フォールバック言語。日本語訳は lib/l10n/app_ja.arb、
+# 実際に使う言語の決定方法は core/locale/ を参照。
+arb-dir: lib/l10n
+template-arb-file: app_pt.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+output-dir: lib/l10n/generated

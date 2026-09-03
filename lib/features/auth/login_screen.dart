@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/auth/dev_auth_bypass.dart';
+import '../../core/locale/language_switcher_button.dart';
 import '../../flavors.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Sign-in screen, shared by both flavors.
 /// 両flavor共通のログイン画面。
@@ -22,8 +24,13 @@ class LoginScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final flavor = AppConfig.instance.flavor;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        actions: const [LanguageSwitcherButton()],
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -43,13 +50,17 @@ class LoginScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    AppConfig.instance.appTitle,
+                    flavor == Flavor.driver
+                        ? l10n.appTitleDriver
+                        : l10n.appTitlePassenger,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    flavor == Flavor.driver ? 'ドライバー用アプリ' : '乗客用アプリ',
+                    flavor == Flavor.driver
+                        ? l10n.loginDriverSubtitle
+                        : l10n.loginPassengerSubtitle,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
@@ -61,8 +72,7 @@ class LoginScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      '開発用: 電話番号認証は未設定のため、ボタンを押すと'
-                      '未認証のまま画面へ進みます。',
+                      l10n.loginDevBypassBanner,
                       style: TextStyle(
                         color: Theme.of(
                           context,
@@ -74,7 +84,7 @@ class LoginScreen extends ConsumerWidget {
                   FilledButton(
                     onPressed: () =>
                         ref.read(devAuthBypassProvider.notifier).state = true,
-                    child: const Text('ログイン'),
+                    child: Text(l10n.loginButton),
                   ),
                 ],
               ),

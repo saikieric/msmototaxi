@@ -49,10 +49,15 @@ lib/
     auth/                       <- AuthRepository, auth state providers, dev bypass flag
     router/                     <- go_router config, auth-aware redirects
     supabase/                   <- SupabaseConfig (reads .env, initializes the client)
+    locale/                     <- LocaleController (persisted pt/ja choice), LanguageSwitcherButton
   features/                    <- one subdir per screen/flow, grouped by who uses it
     auth/                       <- shared login screen
     passenger/home/             <- passenger-only screens
     driver/home/                 <- driver-only screens
+  l10n/
+    app_pt.arb                  <- template/default locale (Brazilian Portuguese) — tracked in git
+    app_ja.arb                  <- Japanese translation — tracked in git
+    generated/                  <- `flutter gen-l10n` output (AppLocalizations) — gitignored, regenerated on `flutter pub get`
 
 supabase/
   config.toml                  <- CLI config, linked to the msmototaxi-sp project
@@ -78,6 +83,20 @@ goes in `core/`, not `features/`.
 1ファイル1画面（または密接に関連するウィジェット群）、ファイル名は
 `<何か>_screen.dart`。flavor共通のロジック（認証・通信・ルーティング）は
 `features/` ではなく `core/` に置く。
+
+**Adding a new UI string:** never hardcode text in a widget. Add a key
+to both `lib/l10n/app_pt.arb` and `lib/l10n/app_ja.arb`, run
+`flutter pub get` to regenerate `AppLocalizations`, then call
+`AppLocalizations.of(context)!.yourKey`. See the "neither" section of
+[bilingual-comments](../bilingual-comments/SKILL.md) — this is a
+different mechanism from the bilingual-*comment* convention.
+
+**新しいUI文言の追加:** ウィジェットにテキストを直接ハードコードしない。
+`lib/l10n/app_pt.arb` と `lib/l10n/app_ja.arb` の両方にキーを追加し、
+`flutter pub get` で `AppLocalizations` を再生成してから
+`AppLocalizations.of(context)!.キー名` で呼び出す。
+[bilingual-comments](../bilingual-comments/SKILL.md) の「どちらでもないもの」
+セクション参照 — これは英日併記コメント規約とは別の仕組み。
 
 ## Style: bilingual comments (English + Japanese) / スタイル: 英語＋日本語併記コメント
 

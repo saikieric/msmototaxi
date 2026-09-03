@@ -1,0 +1,123 @@
+{
+  "@@locale": "pt",
+
+  "appTitlePassenger": "MotoGo",
+  "@appTitlePassenger": {
+    "description": "App/window title for the passenger flavor. Brand name — kept the same across languages on purpose."
+  },
+  "appTitleDriver": "MotoGo Motorista",
+  "@appTitleDriver": {
+    "description": "App/window title for the driver flavor."
+  },
+
+  "logoutTooltip": "Sair",
+  "@logoutTooltip": {
+    "description": "Tooltip on the logout icon button, shown on both home screens."
+  },
+
+  "languageSwitcherTooltip": "Idioma",
+  "@languageSwitcherTooltip": {
+    "description": "Tooltip on the language-switcher icon button."
+  },
+  "languageOptionSystem": "Automático (idioma do dispositivo)",
+  "@languageOptionSystem": {
+    "description": "Menu option: follow the device's language setting instead of a manually picked one."
+  },
+
+  "loginPassengerSubtitle": "Aplicativo do passageiro",
+  "@loginPassengerSubtitle": {
+    "description": "Subtitle under the app name on the login screen, passenger flavor."
+  },
+  "loginDriverSubtitle": "Aplicativo do motorista",
+  "@loginDriverSubtitle": {
+    "description": "Subtitle under the app name on the login screen, driver flavor."
+  },
+  "loginDevBypassBanner": "Modo de desenvolvimento: a autenticação por telefone ainda não está configurada. Ao tocar no botão, você avança sem autenticação real.",
+  "@loginDevBypassBanner": {
+    "description": "Banner explaining the temporary dev-auth-bypass button on the login screen. See core/auth/dev_auth_bypass.dart."
+  },
+  "loginButton": "Entrar",
+  "@loginButton": {
+    "description": "Login screen's submit button — currently just flips the dev-auth-bypass flag, see dev_auth_bypass.dart."
+  },
+
+  "passengerGettingCurrentLocation": "Obtendo localização atual…",
+  "@passengerGettingCurrentLocation": {
+    "description": "Banner shown while fetching the device's GPS position for the pickup point."
+  },
+  "passengerLocationServiceDisabled": "O serviço de localização está desativado",
+  "@passengerLocationServiceDisabled": {
+    "description": "Error shown when the device's location service (GPS) itself is off."
+  },
+  "passengerLocationPermissionDenied": "A permissão de localização não foi concedida",
+  "@passengerLocationPermissionDenied": {
+    "description": "Error shown when the app doesn't have location permission."
+  },
+  "passengerLocationFetchFailed": "Falha ao obter a localização atual: {error}",
+  "@passengerLocationFetchFailed": {
+    "description": "Error shown for any other failure while fetching the device's GPS position.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "description": "The underlying exception's string representation."
+      }
+    }
+  },
+  "passengerTapMapToPickPickupHint": "Você também pode tocar no mapa para escolher o ponto de embarque.",
+  "@passengerTapMapToPickPickupHint": {
+    "description": "Appended to a location error banner, telling the user they can still pick a pickup point manually."
+  },
+  "passengerPickupMarkerTitle": "Ponto de embarque",
+  "@passengerPickupMarkerTitle": {
+    "description": "Info-window title on the pickup map marker."
+  },
+  "passengerDropoffMarkerTitle": "Ponto de desembarque",
+  "@passengerDropoffMarkerTitle": {
+    "description": "Info-window title on the dropoff map marker."
+  },
+  "passengerBackToPickupTooltip": "Voltar ao ponto de embarque",
+  "@passengerBackToPickupTooltip": {
+    "description": "Tooltip on the small FAB that re-centers the map on the pickup point."
+  },
+  "passengerPickupNotSet": "Ponto de embarque: não definido",
+  "@passengerPickupNotSet": {
+    "description": "Status line shown before a pickup point is set."
+  },
+  "passengerPickupSet": "Ponto de embarque: definido",
+  "@passengerPickupSet": {
+    "description": "Status line shown once a pickup point is set."
+  },
+  "passengerDropoffNotSet": "Ponto de desembarque: toque no mapa para selecionar",
+  "@passengerDropoffNotSet": {
+    "description": "Status line shown before a dropoff point is set."
+  },
+  "passengerDropoffSet": "Ponto de desembarque: definido",
+  "@passengerDropoffSet": {
+    "description": "Status line shown once a dropoff point is set."
+  },
+  "passengerRequestRideButton": "Solicitar corrida",
+  "@passengerRequestRideButton": {
+    "description": "Button that submits the ride request (currently a stub)."
+  },
+  "passengerRequestRideStubMessage": "A solicitação de corrida ainda está em desenvolvimento (disponível após a autenticação e o pareamento com motoristas).",
+  "@passengerRequestRideStubMessage": {
+    "description": "Snackbar shown when tapping the (currently stubbed) request-ride button. See PassengerHomeScreen._requestRide."
+  },
+
+  "driverOnlineStatus": "Online (recebendo solicitações)",
+  "@driverOnlineStatus": {
+    "description": "Status line shown when the driver has toggled themself online."
+  },
+  "driverOfflineStatus": "Offline",
+  "@driverOfflineStatus": {
+    "description": "Status line shown when the driver is offline."
+  },
+  "driverWaitingForRequests": "Aguardando solicitações…",
+  "@driverWaitingForRequests": {
+    "description": "Center-of-screen message shown while online with no incoming request."
+  },
+  "driverGoOnlineToReceiveRequests": "Fique online para receber solicitações",
+  "@driverGoOnlineToReceiveRequests": {
+    "description": "Center-of-screen message shown while offline."
+  }
+}

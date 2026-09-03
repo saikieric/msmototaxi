@@ -44,8 +44,9 @@ flutter analyze                                              # static analysis /
 flutter test                                                 # runs test/widget_test.dart / test/widget_test.dartを実行
 flutter test --plain-name "Shows the login screen"           # a single test by name / 名前指定で単一テストを実行
 
+flutter pub get                                               # also regenerates lib/l10n/generated/ (AppLocalizations) from lib/l10n/*.arb / lib/l10n/*.arbからlib/l10n/generated/（AppLocalizations）も再生成する
 bash tool/gen_web_index.sh                                   # regenerate web/index.html with the Google Maps key from .env — required before any web build/run
-                                                               # .envのGoogle MapsキーでBweb/index.htmlを再生成 — Web版のビルド/実行前に必須
+                                                               # .envのGoogle Mapsキーでweb/index.htmlを再生成 — Web版のビルド/実行前に必須
 flutter run -d chrome -t lib/main_passenger.dart              # run passenger flavor in Chrome (no emulator needed) / Chromeで乗客用flavorを実行（エミュレータ不要）
 flutter run -d chrome -t lib/main_driver.dart                 # run driver flavor in Chrome / Chromeでドライバー用flavorを実行
 flutter build web -t lib/main_passenger.dart                  # web build -> build/web/ / Web版ビルド → build/web/
@@ -208,6 +209,39 @@ manually" rather than blocking the screen.
 マーカーになる）。地図をタップすると降車地点を設定。依頼ボタンは両方
 設定されて初めて有効になる。位置情報の権限/サービスが使えない場合も
 画面をブロックせず、「地図をタップして手動で選ぶ」形に縮退する。
+
+**i18n: pt (default) + ja, resolved device-first with a manual override.**
+UI strings live in `lib/l10n/app_pt.arb` / `app_ja.arb`, compiled to
+`AppLocalizations` by `flutter gen-l10n` (auto-run via `generate: true`
+in pubspec.yaml — the output under `lib/l10n/generated/` is gitignored).
+`app.dart`'s `localeResolutionCallback` matches the device's language by
+*language code only* (so a `pt_BR` device resolves to our `pt` ARB) and
+falls back to pt if unsupported. `core/locale/locale_controller.dart`'s
+`LocaleController` lets the user override this via
+`LanguageSwitcherButton` (shown in every screen's AppBar); the override
+is persisted through SharedPreferences and read back at startup in
+`bootstrap.dart`, because SharedPreferences is only accessible
+asynchronously and `LocaleController`'s initial state has to be known
+synchronously when the provider is built. Adding a UI string always
+means adding the key to *both* ARB files — see `bilingual-comments`
+skill for why this is a distinct mechanism from the bilingual-comment
+convention below, not an application of it.
+
+**i18n: pt（デフォルト）+ ja、端末言語をまず見て手動上書きも可能。**
+UI文言は `lib/l10n/app_pt.arb` / `app_ja.arb` にあり、`flutter gen-l10n`
+（pubspec.yamlの`generate: true`により自動実行 — 出力先の
+`lib/l10n/generated/` はgitignore対象）で `AppLocalizations` に
+コンパイルされる。`app.dart` の `localeResolutionCallback` は端末の言語を
+*language codeのみ*で照合する（`pt_BR`端末でも `pt` のARBに解決される）ため、
+未対応言語ならptにフォールバックする。`core/locale/locale_controller.dart`
+の `LocaleController` は、各画面のAppBarに表示される
+`LanguageSwitcherButton` 経由でこれを手動上書きできるようにする —
+上書き結果はSharedPreferencesで永続化され、`bootstrap.dart` の起動時に
+読み込まれる。これはSharedPreferences自体が非同期でしかアクセスできない
+一方、providerを構築する時点で `LocaleController` の初期stateは同期的に
+分かっている必要があるため。UI文言を追加する際は必ず*両方の*ARBファイルに
+キーを追加すること — これがなぜ下記の英日併記コメント規約の適用例ではなく
+別の仕組みなのかは `bilingual-comments` スキル参照。
 
 ## Style / スタイル
 

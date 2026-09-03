@@ -57,21 +57,29 @@ file in this project follows the same pattern (see `run-msmototaxi`,
 - **コミットメッセージ** — このリポジトリの `git log` 参照。これまでの
   コミットメッセージはすべて英語のみ。
 
-## What stays Japanese-only / 日本語のみのままにするもの
+## What's neither: user-facing UI strings go through i18n, not bilingual comments / どちらでもないもの: ユーザー向けUI文言はi18n経由（併記コメントの対象外）
 
-- **User-facing UI strings** (button labels, screen text, error messages
-  shown to the user) — this is a Japanese-market app for a Brazilian
-  city (Registro, SP — see `../slides/slides.md`), and the UI text is
-  Japanese throughout the codebase already. Don't add English UI strings
-  or bilingual UI strings — only the *code comments explaining* the UI
-  are bilingual, not the UI text itself.
+**User-facing UI strings are localized (pt/ja) via `lib/l10n/*.arb` and
+`AppLocalizations`** — see `lib/l10n/app_pt.arb` (default/template,
+Brazilian Portuguese) and `lib/l10n/app_ja.arb` (Japanese). Never
+hardcode a UI string directly in a widget; add a key to both `.arb`
+files (pt value + ja value) and call it via
+`AppLocalizations.of(context)!.yourKey`, run `flutter pub get` to
+regenerate, then use it. This is a different mechanism from the
+bilingual-comment convention above — an ARB key holds one language's
+text per file, not an English+Japanese pair in one string — and it's
+not optional the way "add a Japanese comment" is: a UI string with no
+`.arb` entry simply won't render in either language properly.
 
-- **ユーザー向けUI文言**（ボタンのラベル、画面のテキスト、ユーザーに
-  表示するエラーメッセージ）— これはブラジルの都市（Registro市、SP州 —
-  `../slides/slides.md` 参照）向けの日本市場アプリで、UI文言は
-  コードベース全体を通して既に日本語のみ。英語のUI文言や英日併記のUI
-  文言を追加しないこと — 併記するのは*UIを説明するコードコメント*であって、
-  UI文言そのものではない。
+**ユーザー向けUI文言は `lib/l10n/*.arb` と `AppLocalizations` 経由で
+多言語化（pt/ja）する** — `lib/l10n/app_pt.arb`（デフォルト/テンプレート、
+ブラジルポルトガル語）と `lib/l10n/app_ja.arb`（日本語）参照。ウィジェットに
+UI文言を直接ハードコードしないこと。両方の`.arb`ファイルにキーを追加し
+（pt値・ja値の両方）、`AppLocalizations.of(context)!.キー名` で呼び出し、
+`flutter pub get` で再生成してから使う。これは上記の英日併記コメント規約とは
+別の仕組み — ARBキーは1ファイルにつき1言語のテキストを持ち、1つの文字列に
+英日ペアが入るわけではない — そして「日本語コメントも足す」ほど任意でもない:
+`.arb`にエントリの無いUI文言はどちらの言語でも正しく表示されない。
 
 ## When touching old code / 古いコードを触るとき
 
