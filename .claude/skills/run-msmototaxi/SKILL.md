@@ -283,3 +283,42 @@ flutter run                                                   # デフォルト�
   （scratchpad内の使い捨てスクリプトで十分だった）— 地図機能の検証が
   定常的に必要になった場合にのみ、`driver.mjs geo-screenshot`のような
   コマンドとして追加を検討する。
+
+- **`google_maps_flutter_web` has several native-SDK features that
+  silently don't work on web** — all confirmed by direct testing here,
+  not just by reading docs/issues:
+  - `BitmapDescriptor.defaultMarkerWithHue` is ignored on web; every
+    marker renders as the plain default pin regardless of hue
+    ([flutter/flutter#87917](https://github.com/flutter/flutter/issues/87917),
+    [#161948](https://github.com/flutter/flutter/issues/161948)). Draw
+    custom bitmaps instead (see `passenger_home_screen.dart`'s
+    `_createPinBitmap`).
+  - `myLocationEnabled` (the native "blue dot") renders nothing on web —
+    the underlying Google Maps JavaScript API has no built-in "my
+    location" primitive to begin with (unlike the native Android/iOS
+    SDKs), so the plugin has nothing to hook into. Draw your own marker
+    at the known device location instead if you need this cross-platform.
+  - Only one `Marker`'s `InfoWindow` can be open at a time (this one
+    isn't web-specific — it's true of Google Maps generally, native SDKs
+    included): calling `showMarkerInfoWindow` for a second marker closes
+    whichever was already open. There is no way to keep two info windows
+    open simultaneously through the standard API.
+
+  **`google_maps_flutter_web`はネイティブSDKにある機能のいくつかが、
+  Web版では無言で動作しない** — いずれもドキュメント/Issueを読んだだけ
+  ではなく、この環境で直接検証して確認した:
+  - `BitmapDescriptor.defaultMarkerWithHue`はWeb版では無視され、hueに
+    関わらず全マーカーが通常のデフォルトピンで描画される
+    （[flutter/flutter#87917](https://github.com/flutter/flutter/issues/87917)、
+    [#161948](https://github.com/flutter/flutter/issues/161948)）。
+    代わりに自前でビットマップを描画すること
+    （`passenger_home_screen.dart`の`_createPinBitmap`参照）。
+  - `myLocationEnabled`（ネイティブの「青い点」）はWeb版では何も
+    描画されない — そもそもGoogle Maps JavaScript API自体に「現在地」を
+    示す組み込みの仕組みが無い（ネイティブのAndroid/iOS SDKとは異なる）
+    ため、プラグイン側もフックする対象が無い。クロスプラットフォームで
+    必要な場合は、既知の端末位置に自前でマーカーを描画すること。
+  - `Marker`の`InfoWindow`は同時に1つしか開けない（これはWeb版固有では
+    なく、ネイティブSDK含むGoogle Maps全般の仕様）: 2つ目のマーカーに
+    対して`showMarkerInfoWindow`を呼ぶと、既に開いていた方が閉じる。
+    標準APIで2つの吹き出しを同時に開いたままにする方法は無い。

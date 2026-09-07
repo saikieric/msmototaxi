@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -60,6 +61,49 @@ LatLng _destinationPoint(
   return LatLng(lat2 * 180 / math.pi, lon2 * 180 / math.pi);
 }
 
+/// Renders a simple filled-circle pin bitmap in [color], for use as a
+/// [Marker.icon].
+/// [color] で塗りつぶした単純な円形ピンの画像を生成し、[Marker.icon] として
+/// 使えるようにする。
+///
+/// `BitmapDescriptor.defaultMarkerWithHue` is used instead on Android/iOS,
+/// but Flutter Web's Google Maps implementation has a long-standing,
+/// unresolved bug where it ignores the hue and always renders the standard
+/// red pin (flutter/flutter#87917, #161948) — with only that, the pickup
+/// (meant to be green) and dropoff (red) markers were indistinguishable on
+/// web. Drawing our own bitmap sidesteps the bug entirely and looks the
+/// same on every platform.
+/// Android/iOSでは代わりに`BitmapDescriptor.defaultMarkerWithHue`を使うが、
+/// Flutter WebのGoogle Maps実装にはhueを無視して常に標準の赤いピンを描画する
+/// という長年未解決のバグがある（flutter/flutter#87917、#161948）—
+/// これだけだと、乗車地点（本来は緑）と降車地点（赤）のマーカーがWeb上で
+/// 区別できなくなってしまう。自前でビットマップを描画することでこのバグを
+/// 完全に回避でき、かつどのプラットフォームでも同じ見た目になる。
+Future<BitmapDescriptor> _createPinBitmap(Color color) async {
+  const size = 64.0;
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder, const Rect.fromLTWH(0, 0, size, size));
+  const center = Offset(size / 2, size / 2);
+  const radius = size / 2 - 4;
+
+  canvas.drawCircle(center, radius, Paint()..color = color);
+  canvas.drawCircle(
+    center,
+    radius,
+    Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4,
+  );
+
+  final image = await recorder.endRecording().toImage(
+    size.toInt(),
+    size.toInt(),
+  );
+  final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+  return BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
+}
+
 /// Passenger home screen: a map to request a ride on.
 /// 乗客用ホーム画面: 配車依頼を出すための地図。
 ///
@@ -107,6 +151,21 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   // （_onPickupMarkerDragEnd参照）。
   LatLng? _pickupLocation;
   LatLng? _dropoffLocation;
+  // Custom-drawn marker bitmaps — see _createPinBitmap for why these
+  // replace BitmapDescriptor.defaultMarkerWithHue. Null until the async
+  // draw finishes (briefly, at startup); markers fall back to the plain
+  // default marker until then.
+  // 自前で描画したマーカー画像 — なぜ`BitmapDescriptor.defaultMarkerWithHue`
+  // の代わりにこれを使うかは_createPinBitmap参照。非同期の描画が完了する
+  // （起動時のごく短い間）まではnullで、それまでマーカーは通常のデフォルト
+  // マーカーにフォールバックする。
+  BitmapDescriptor? _pickupIcon;
+  BitmapDescriptor? _dropoffIcon;
+  // Marks _deviceLocation itself (see below) — distinct from the pickup
+  // pin, which starts at the same spot but the user can drag away from it.
+  // _deviceLocation自体を示す（下記参照）— 乗車地点ピンとは別物で、
+  // 最初は同じ地点だがユーザーがそこから離してドラッグできる。
+  BitmapDescriptor? _deviceLocationIcon;
   bool _isLocatingDevice = true;
   // Stores which error occurred (not the localized message itself) so the
   // message can be rebuilt in the current language if it changes while the
@@ -120,6 +179,21 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   void initState() {
     super.initState();
     _initPickupFromDeviceLocation();
+    _loadMarkerIcons();
+  }
+
+  Future<void> _loadMarkerIcons() async {
+    final icons = await Future.wait([
+      _createPinBitmap(Colors.green),
+      _createPinBitmap(Colors.red),
+      _createPinBitmap(Colors.blue),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _pickupIcon = icons[0];
+      _dropoffIcon = icons[1];
+      _deviceLocationIcon = icons[2];
+    });
   }
 
   @override
@@ -264,23 +338,58 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    // Our custom marker bitmaps are plain circles (no pointed pin tip), so
+    // anchor them at their exact center (0.5, 0.5) rather than the default
+    // (0.5, 1.0) — the default assumes a teardrop pin whose bottom tip
+    // marks the location, which would place a circle floating half its
+    // own height above the actual coordinate.
+    // 自前のマーカー画像は（先端の無い）単純な円のため、デフォルトの
+    // アンカー(0.5, 1.0)ではなく、中心(0.5, 0.5)を基準にする —
+    // デフォルトは先端が地点を指す涙形ピンを想定しており、そのままだと
+    // 円が実際の座標より自分の高さの半分だけ浮いた位置に表示されてしまう。
+    const circleAnchor = Offset(0.5, 0.5);
+
     final markers = <Marker>{
+      // The device's own live position — see _deviceLocationIcon's field
+      // doc comment for why this exists instead of GoogleMap's
+      // myLocationEnabled. Not draggable; purely informational.
+      // 端末自身のリアルタイム位置 — GoogleMapの`myLocationEnabled`の
+      // 代わりにこれがある理由は_deviceLocationIconのフィールドdocコメント
+      // 参照。ドラッグ不可、あくまで表示専用。
+      if (_deviceLocation != null)
+        Marker(
+          markerId: const MarkerId('device_location'),
+          position: _deviceLocation!,
+          icon: _deviceLocationIcon ?? BitmapDescriptor.defaultMarker,
+          anchor: circleAnchor,
+          zIndexInt: 0,
+        ),
       if (_pickupLocation != null)
         Marker(
           markerId: const MarkerId('pickup'),
           position: _pickupLocation!,
           draggable: true,
           onDragEnd: _onPickupMarkerDragEnd,
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            BitmapDescriptor.hueGreen,
-          ),
+          // _pickupIcon/_dropoffIcon replace defaultMarkerWithHue — see
+          // _createPinBitmap for why (a Flutter Web bug makes the hue
+          // param a no-op there). Falls back to the plain default marker
+          // for the brief moment before the async draw finishes.
+          // _pickupIcon/_dropoffIconはdefaultMarkerWithHueの代替 — 理由は
+          // _createPinBitmap参照（Flutter Webのバグでhue引数が効かない）。
+          // 非同期描画が完了するまでのごく短い間は、通常のデフォルト
+          // マーカーにフォールバックする。
+          icon: _pickupIcon ?? BitmapDescriptor.defaultMarker,
+          anchor: circleAnchor,
+          zIndexInt: 1,
           infoWindow: InfoWindow(title: l10n.passengerPickupMarkerTitle),
         ),
       if (_dropoffLocation != null)
         Marker(
           markerId: const MarkerId('dropoff'),
           position: _dropoffLocation!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          icon: _dropoffIcon ?? BitmapDescriptor.defaultMarker,
+          anchor: circleAnchor,
+          zIndexInt: 1,
           infoWindow: InfoWindow(title: l10n.passengerDropoffMarkerTitle),
         ),
     };
@@ -343,6 +452,24 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
                       ).colorScheme.primary.withValues(alpha: 0.12),
                     ),
                   },
+            // Note: intentionally NOT using GoogleMap's built-in
+            // myLocationEnabled ("blue dot") flag — verified in this
+            // environment that google_maps_flutter_web doesn't actually
+            // render it (the underlying Google Maps JavaScript API has no
+            // native "my location" primitive; that's an app-level feature
+            // on Android/iOS/Google's own web maps, not something the
+            // embeddable JS API provides). The device_location marker
+            // below (in `markers`) is our own reliable, cross-platform
+            // equivalent.
+            // 注: あえてGoogleMap組み込みのmyLocationEnabled（「青い点」）
+            // フラグは使っていない — この環境で検証した結果、
+            // google_maps_flutter_webでは実際には描画されないことを確認
+            // 済み（Google Maps JavaScript API自体に「現在地」を示す
+            // ネイティブの仕組みが無いため。それはAndroid/iOS/Google自身の
+            // Web地図が持つアプリレベルの機能であり、組み込み用JS APIが
+            // 提供するものではない）。下の`markers`にある
+            // device_locationマーカーが、これに代わる自前実装の
+            // クロスプラットフォームで確実に動く同等機能。
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
           ),
