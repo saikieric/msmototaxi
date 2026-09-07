@@ -322,3 +322,43 @@ flutter run                                                   # デフォルト�
     なく、ネイティブSDK含むGoogle Maps全般の仕様）: 2つ目のマーカーに
     対して`showMarkerInfoWindow`を呼ぶと、既に開いていた方が閉じる。
     標準APIで2つの吹き出しを同時に開いたままにする方法は無い。
+
+- **A Flutter widget stacked over GoogleMap (web) can still tap-through to
+  the map underneath** — GoogleMap renders as a real HTML element
+  (`HtmlElementView`) on web, so a Flutter widget merely painted on top of
+  it doesn't guarantee it absorbs the tap. Google's own documented fix is
+  wrapping the overlay in `pointer_interceptor`'s `PointerInterceptor` —
+  but that combination (GoogleMap + `Stack` + `PointerInterceptor`) is
+  itself flagged as unstable by Flutter
+  ([flutter/flutter#118159](https://github.com/flutter/flutter/issues/118159)):
+  confirmed here that wrapping the "back to pickup" FAB in
+  `PointerInterceptor` did NOT stop its taps from also landing on the map
+  as a dropoff-point tap. The reliable fix that was actually verified to
+  work: don't overlap interactive controls with GoogleMap at all — move
+  them to a non-overlapping layout section instead (see
+  `passenger_home_screen.dart`: the status/action card moved from a
+  `Positioned` inside the map's `Stack` to a plain sibling below a
+  `Expanded(child: Stack(...))`). Purely informational overlays (the
+  location-error banner) can still overlap the map, since a stray tap
+  landing on the map while reading them is a minor side effect, not a
+  broken control.
+
+  **Web版でGoogleMapの上に重ねたFlutterウィジェットでも、タップが下の
+  地図に伝わってしまうことがある** — Web版のGoogleMapは実際のHTML要素
+  （`HtmlElementView`）として描画されるため、単に上に描画しているだけの
+  Flutterウィジェットがタップを吸収してくれるとは限らない。Google自身が
+  公式に案内している対処法は、オーバーレイを`pointer_interceptor`の
+  `PointerInterceptor`でラップすることだが、その組み合わせ
+  （GoogleMap + `Stack` + `PointerInterceptor`）自体がFlutter側で
+  不安定と報告されている
+  （[flutter/flutter#118159](https://github.com/flutter/flutter/issues/118159)）:
+  実際にこの環境で確認したところ、「乗車地点に戻る」FABを
+  `PointerInterceptor`でラップしても、そのタップが同時に地図側で降車地点
+  タップとしても扱われるのを止められなかった。実際に効果が確認できた
+  確実な対処法は、操作系コントロールを最初からGoogleMapに重ねないこと
+  — 重ならないレイアウトのセクションに移す（`passenger_home_screen.dart`
+  参照: ステータス/操作カードを、地図の`Stack`内の`Positioned`から、
+  `Expanded(child: Stack(...))`の下にある単なる兄弟要素に移動した）。
+  純粋に情報提供のみのオーバーレイ（位置情報エラーバナー）は地図に
+  重ねたままでよい — 読んでいる最中に地図へタップが漏れても軽微な副作用
+  であり、操作不能になるわけではないため。

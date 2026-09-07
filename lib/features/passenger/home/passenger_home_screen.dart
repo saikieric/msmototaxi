@@ -406,146 +406,189 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
           ),
         ],
       ),
-      body: Stack(
+      // Interactive controls live in a separate, non-overlapping section
+      // below the map (see the Card at the bottom of this Column) rather
+      // than floating on top of it in a Stack. On web, GoogleMap renders as
+      // a real HTML element (HtmlElementView); a widget merely stacked
+      // visually on top of it can still leave taps reaching that element
+      // underneath at the same time (confirmed here: the old "back to
+      // pickup" FAB was also registering as a dropoff tap on the map below
+      // it). The documented fix for this (wrapping overlays in a
+      // PointerInterceptor) turned out to be unreliable in combination with
+      // GoogleMap specifically — flutter/flutter#118159 confirms known
+      // instability in exactly this combination (GoogleMap + Stack +
+      // PointerInterceptor) — so instead of fighting that, interactive
+      // controls simply don't overlap the map at all. The two _InfoBanner
+      // overlays are the one remaining exception (see their own note) since
+      // they aren't interactive.
+      // 操作系のコントロールは、地図の上にStackで重ねるのではなく、地図の下の
+      // 別セクション（このColumn末尾のCard）に分離して置く。Web版では
+      // GoogleMapは実際のHTML要素（HtmlElementView）として描画されるため、
+      // 視覚的に重ねるだけのウィジェットでは、タップが同時に下のHTML要素にも
+      // 届いてしまうことがある（この環境で確認済み: 旧「乗車地点に戻る」FABを
+      // タップすると、同時に地図側で降車地点タップとしても扱われていた）。
+      // これに対する公式な対処法（オーバーレイをPointerInterceptorでラップ
+      // する）は、GoogleMapとの組み合わせでは不安定であることが判明した —
+      // flutter/flutter#118159が、まさにこの組み合わせ（GoogleMap + Stack +
+      // PointerInterceptor）に既知の不安定さがあることを裏付けている —
+      // そのため、これと戦うのではなく、操作系のコントロールを地図と一切
+      // 重ねない設計にした。唯一の例外は2つの_InfoBannerオーバーレイ
+      // （操作対象ではないため — 詳細は個別の注記参照）。
+      body: Column(
         children: [
-          GoogleMap(
-            initialCameraPosition: const CameraPosition(
-              target: _registroCityCenter,
-              zoom: 14,
-            ),
-            onMapCreated: (controller) {
-              _mapController = controller;
-              // Covers the case where the device's GPS fix resolves before
-              // the map finishes initializing (observed in headless/mocked
-              // geolocation testing, but possible on a slow device too) —
-              // without this, _zoomToPickup's earlier call from
-              // _initPickupFromDeviceLocation silently no-ops on a
-              // still-null controller and the map is left at the initial
-              // city-wide view.
-              // GPS取得地点の解決が地図の初期化完了より先に終わるケースに
-              // 対応する（ヘッドレス/モック位置情報でのテストで確認済みだが、
-              // 低速な端末でも起こりうる）— これが無いと、
-              // _initPickupFromDeviceLocationからの_zoomToPickup呼び出しが
-              // まだnullなコントローラに対して無言でno-opになり、地図が
-              // 初期の街全体ビューのまま残ってしまう。
-              _zoomToPickup();
-            },
-            onTap: _onMapTap,
-            markers: markers,
-            // Visualizes _pickupRadiusMeters around the device's actual GPS
-            // fix, so the drag constraint in _clampToPickupRadius is
-            // something the user can see, not just silently enforced.
-            // _pickupRadiusMetersを端末の実際のGPS取得地点の周りに可視化する。
-            // _clampToPickupRadiusでのドラッグ制約を、暗黙に強制するのではなく
-            // ユーザーが目で見て分かるようにする。
-            circles: _deviceLocation == null
-                ? const {}
-                : {
-                    Circle(
-                      circleId: const CircleId('pickup_radius'),
-                      center: _deviceLocation!,
-                      radius: _pickupRadiusMeters,
-                      strokeWidth: 2,
-                      strokeColor: Theme.of(context).colorScheme.primary,
-                      fillColor: Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.12),
-                    ),
+          Expanded(
+            child: Stack(
+              children: [
+                GoogleMap(
+                  initialCameraPosition: const CameraPosition(
+                    target: _registroCityCenter,
+                    zoom: 14,
+                  ),
+                  onMapCreated: (controller) {
+                    _mapController = controller;
+                    // Covers the case where the device's GPS fix resolves
+                    // before the map finishes initializing (observed in
+                    // headless/mocked geolocation testing, but possible on
+                    // a slow device too) — without this, _zoomToPickup's
+                    // earlier call from _initPickupFromDeviceLocation
+                    // silently no-ops on a still-null controller and the
+                    // map is left at the initial city-wide view.
+                    // GPS取得地点の解決が地図の初期化完了より先に終わる
+                    // ケースに対応する（ヘッドレス/モック位置情報での
+                    // テストで確認済みだが、低速な端末でも起こりうる）—
+                    // これが無いと、_initPickupFromDeviceLocationからの
+                    // _zoomToPickup呼び出しがまだnullなコントローラに対して
+                    // 無言でno-opになり、地図が初期の街全体ビューのまま
+                    // 残ってしまう。
+                    _zoomToPickup();
                   },
-            // Note: intentionally NOT using GoogleMap's built-in
-            // myLocationEnabled ("blue dot") flag — verified in this
-            // environment that google_maps_flutter_web doesn't actually
-            // render it (the underlying Google Maps JavaScript API has no
-            // native "my location" primitive; that's an app-level feature
-            // on Android/iOS/Google's own web maps, not something the
-            // embeddable JS API provides). The device_location marker
-            // below (in `markers`) is our own reliable, cross-platform
-            // equivalent.
-            // 注: あえてGoogleMap組み込みのmyLocationEnabled（「青い点」）
-            // フラグは使っていない — この環境で検証した結果、
-            // google_maps_flutter_webでは実際には描画されないことを確認
-            // 済み（Google Maps JavaScript API自体に「現在地」を示す
-            // ネイティブの仕組みが無いため。それはAndroid/iOS/Google自身の
-            // Web地図が持つアプリレベルの機能であり、組み込み用JS APIが
-            // 提供するものではない）。下の`markers`にある
-            // device_locationマーカーが、これに代わる自前実装の
-            // クロスプラットフォームで確実に動く同等機能。
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-          ),
-          if (_isLocatingDevice)
-            _InfoBanner(message: l10n.passengerGettingCurrentLocation),
-          if (_locationError != null)
-            _InfoBanner(
-              message:
-                  '${_locationError!.localizedMessage(l10n)}\n'
-                  '${l10n.passengerTapMapToPickPickupHint}',
-              isError: true,
+                  onTap: _onMapTap,
+                  markers: markers,
+                  // Visualizes _pickupRadiusMeters around the device's
+                  // actual GPS fix, so the drag constraint in
+                  // _clampToPickupRadius is something the user can see, not
+                  // just silently enforced.
+                  // _pickupRadiusMetersを端末の実際のGPS取得地点の周りに
+                  // 可視化する。_clampToPickupRadiusでのドラッグ制約を、
+                  // 暗黙に強制するのではなくユーザーが目で見て分かるように
+                  // する。
+                  circles: _deviceLocation == null
+                      ? const {}
+                      : {
+                          Circle(
+                            circleId: const CircleId('pickup_radius'),
+                            center: _deviceLocation!,
+                            radius: _pickupRadiusMeters,
+                            strokeWidth: 2,
+                            strokeColor: Theme.of(context).colorScheme.primary,
+                            fillColor: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.12),
+                          ),
+                        },
+                  // Note: intentionally NOT using GoogleMap's built-in
+                  // myLocationEnabled ("blue dot") flag — verified in this
+                  // environment that google_maps_flutter_web doesn't
+                  // actually render it (the underlying Google Maps
+                  // JavaScript API has no native "my location" primitive;
+                  // that's an app-level feature on Android/iOS/Google's own
+                  // web maps, not something the embeddable JS API
+                  // provides). The device_location marker below (in
+                  // `markers`) is our own reliable, cross-platform
+                  // equivalent.
+                  // 注: あえてGoogleMap組み込みのmyLocationEnabled
+                  // （「青い点」）フラグは使っていない — この環境で検証した
+                  // 結果、google_maps_flutter_webでは実際には描画されない
+                  // ことを確認済み（Google Maps JavaScript API自体に
+                  // 「現在地」を示すネイティブの仕組みが無いため。それは
+                  // Android/iOS/Google自身のWeb地図が持つアプリレベルの
+                  // 機能であり、組み込み用JS APIが提供するものではない）。
+                  // 下の`markers`にあるdevice_locationマーカーが、これに
+                  // 代わる自前実装のクロスプラットフォームで確実に動く
+                  // 同等機能。
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                ),
+                if (_isLocatingDevice)
+                  _InfoBanner(message: l10n.passengerGettingCurrentLocation),
+                if (_locationError != null)
+                  _InfoBanner(
+                    message:
+                        '${_locationError!.localizedMessage(l10n)}\n'
+                        '${l10n.passengerTapMapToPickPickupHint}',
+                    isError: true,
+                  ),
+              ],
             ),
-          Positioned(
-            right: 16,
-            bottom: 180,
-            child: FloatingActionButton.small(
-              onPressed: _pickupLocation == null
-                  ? null
-                  : () => _mapController?.animateCamera(
-                      CameraUpdate.newLatLng(_pickupLocation!),
-                    ),
-              tooltip: l10n.passengerBackToPickupTooltip,
-              child: const Icon(Icons.my_location),
-            ),
           ),
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: 24,
-            child: Card(
-              elevation: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _RideStatusLine(
-                      icon: Icons.circle,
-                      color: Colors.green,
-                      label: _pickupLocation == null
-                          ? l10n.passengerPickupNotSet
-                          : l10n.passengerPickupSet,
-                    ),
-                    if (_deviceLocation != null) ...[
-                      const SizedBox(height: 2),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 22),
-                        child: Text(
-                          l10n.passengerPickupRadiusHint,
-                          style: Theme.of(context).textTheme.bodySmall
-                              ?.copyWith(
-                                color: Theme.of(context).colorScheme.outline,
-                              ),
+          Card(
+            margin: EdgeInsets.zero,
+            shape: const RoundedRectangleBorder(),
+            elevation: 4,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _RideStatusLine(
+                          icon: Icons.circle,
+                          color: Colors.green,
+                          label: _pickupLocation == null
+                              ? l10n.passengerPickupNotSet
+                              : l10n.passengerPickupSet,
                         ),
                       ),
+                      // Re-centers the map on the pickup point. Lives here,
+                      // next to the pickup status line, rather than as a
+                      // FAB floating over the map — see the class-level
+                      // note above `body: Column(`.
+                      // 乗車地点に地図を戻す。地図に重ねるFABとしてではなく
+                      // 乗車地点ステータス行の隣にある — 理由は
+                      // `body: Column(`直前のクラスレベルの注記参照。
+                      IconButton(
+                        onPressed: _pickupLocation == null
+                            ? null
+                            : () => _mapController?.animateCamera(
+                                CameraUpdate.newLatLng(_pickupLocation!),
+                              ),
+                        tooltip: l10n.passengerBackToPickupTooltip,
+                        icon: const Icon(Icons.my_location),
+                      ),
                     ],
-                    const SizedBox(height: 4),
-                    _RideStatusLine(
-                      icon: Icons.location_on,
-                      color: Colors.red,
-                      label: _dropoffLocation == null
-                          ? l10n.passengerDropoffNotSet
-                          : l10n.passengerDropoffSet,
+                  ),
+                  if (_deviceLocation != null)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 22),
+                      child: Text(
+                        l10n.passengerPickupRadiusHint,
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(
+                              color: Theme.of(context).colorScheme.outline,
+                            ),
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed:
-                          (_pickupLocation != null && _dropoffLocation != null)
-                          ? _requestRide
-                          : null,
-                      icon: const Icon(Icons.motorcycle),
-                      label: Text(l10n.passengerRequestRideButton),
-                    ),
-                  ],
-                ),
+                  const SizedBox(height: 4),
+                  _RideStatusLine(
+                    icon: Icons.location_on,
+                    color: Colors.red,
+                    label: _dropoffLocation == null
+                        ? l10n.passengerDropoffNotSet
+                        : l10n.passengerDropoffSet,
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed:
+                        (_pickupLocation != null && _dropoffLocation != null)
+                        ? _requestRide
+                        : null,
+                    icon: const Icon(Icons.motorcycle),
+                    label: Text(l10n.passengerRequestRideButton),
+                  ),
+                ],
               ),
             ),
           ),
@@ -587,6 +630,15 @@ class _InfoBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    // Still overlaps the map (unlike the other controls — see the
+    // class-level note in PassengerHomeScreen) since it's read-only, not
+    // interactive: a stray tap landing on the map underneath while the user
+    // is just reading it is a minor, acceptable side effect, not a broken
+    // control.
+    // 他のコントロールとは違い（理由はPassengerHomeScreenのクラスレベルの
+    // 注記参照）、これは操作対象ではなく読み取り専用のため、依然として
+    // 地図に重ねている — 読んでいるだけの間に下の地図へタップが漏れても、
+    // 軽微で許容できる副作用であり、操作不能になるわけではない。
     return Positioned(
       top: 16,
       left: 16,
