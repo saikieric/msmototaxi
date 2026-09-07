@@ -251,3 +251,35 @@ flutter run                                                   # デフォルト�
   右上の🌐アイコン、おおよそ(460, 28) — をクリックしない限り）。言語を
   変更した後は、保存済みの座標を再利用する前に必ずスクリーンショットを
   撮り直すこと。
+
+- **Verifying passenger-home map features (pickup circle, markers) needs
+  mocked geolocation** — plain `chromium.launch()` + `newPage()` (what
+  `driver.mjs` uses) never grants location permission, so the passenger
+  home screen always shows the "位置情報の権限が許可されていません"
+  fallback and `_deviceLocation`/the pickup-radius circle never render.
+  To actually see that state, create a browser *context* (not just a
+  page) with permission + a fixed position, e.g.:
+  ```js
+  const context = await browser.newContext({
+    viewport: { width: 480, height: 900 },
+    permissions: ['geolocation'],
+    geolocation: { latitude: -24.4950, longitude: -47.8433 }, // Registro
+  });
+  const page = await context.newPage();
+  ```
+  This isn't wired into `driver.mjs` itself (a one-off script in the
+  scratchpad was enough) — add it there only if map-feature verification
+  becomes routine enough to be worth a `driver.mjs geo-screenshot`
+  command.
+
+  **乗客用ホーム画面の地図機能（乗車地点調整円・マーカー）を検証するには
+  位置情報のモックが必要** — 素の `chromium.launch()` +
+  `newPage()`（`driver.mjs`が使っている方式）では位置情報の許可が
+  一切下りないため、乗客用ホーム画面は常に
+  「位置情報の権限が許可されていません」のフォールバック状態になり、
+  `_deviceLocation`／乗車地点調整円は描画されない。実際にその状態を
+  見るには、単なるpageではなく*context*を許可＋固定位置付きで作成する
+  （上記コード例参照）。これは`driver.mjs`自体には組み込んでいない
+  （scratchpad内の使い捨てスクリプトで十分だった）— 地図機能の検証が
+  定常的に必要になった場合にのみ、`driver.mjs geo-screenshot`のような
+  コマンドとして追加を検討する。

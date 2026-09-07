@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -13,6 +15,50 @@ import '../../../l10n/generated/app_localizations.dart';
 /// Registro市（サンパウロ州）中心部の座標。実際の現在地が取得できるまで
 /// （または権限が拒否された場合）の初期カメラ位置に使う。
 const _registroCityCenter = LatLng(-24.4950, -47.8433);
+
+/// How far the pickup pin can be adjusted from the device's actual GPS fix.
+/// Drawn on the map as a circle (see `build()`'s `circles:`) so the limit is
+/// visible, not just enforced silently.
+/// 乗車地点のピンを、端末の実際のGPS取得地点からどれだけ調整できるか。
+/// 地図上に円として描画し（`build()`の`circles:`参照）、制限を暗黙のもの
+/// にせず可視化する。
+const _pickupRadiusMeters = 50.0;
+
+const _earthRadiusMeters = 6371000.0;
+
+/// Returns the point [distanceMeters] from [origin] along compass bearing
+/// [bearingDegrees], via the standard spherical-earth "destination point
+/// given distance and bearing" formula. Used to clamp a dragged pickup pin
+/// back onto the edge of the pickup-radius circle — see
+/// `_PassengerHomeScreenState._clampToPickupRadius`.
+/// [origin] から方位角 [bearingDegrees]（コンパス方位）へ [distanceMeters]
+/// 進んだ地点を、球面地球モデルの標準的な「距離と方位から目的地を求める」
+/// 公式で返す。ドラッグされた乗車地点ピンを、乗車地点調整円の円周上まで
+/// 引き戻すために使う —
+/// `_PassengerHomeScreenState._clampToPickupRadius` 参照。
+LatLng _destinationPoint(
+  LatLng origin, {
+  required double bearingDegrees,
+  required double distanceMeters,
+}) {
+  final bearing = bearingDegrees * math.pi / 180;
+  final lat1 = origin.latitude * math.pi / 180;
+  final lon1 = origin.longitude * math.pi / 180;
+  final angularDistance = distanceMeters / _earthRadiusMeters;
+
+  final lat2 = math.asin(
+    math.sin(lat1) * math.cos(angularDistance) +
+        math.cos(lat1) * math.sin(angularDistance) * math.cos(bearing),
+  );
+  final lon2 =
+      lon1 +
+      math.atan2(
+        math.sin(bearing) * math.sin(angularDistance) * math.cos(lat1),
+        math.cos(angularDistance) - math.sin(lat1) * math.sin(lat2),
+      );
+
+  return LatLng(lat2 * 180 / math.pi, lon2 * 180 / math.pi);
+}
 
 /// Passenger home screen: a map to request a ride on.
 /// 乗客用ホーム画面: 配車依頼を出すための地図。
@@ -43,6 +89,22 @@ class PassengerHomeScreen extends ConsumerStatefulWidget {
 
 class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   GoogleMapController? _mapController;
+  // The device's actual GPS fix, used as the center of the pickup-radius
+  // circle and the reference point pickup adjustments are clamped against.
+  // Null if location couldn't be obtained (permission/service denied) —
+  // in that case there's no reference point, so pickup is set freely by
+  // tapping instead (see _onMapTap).
+  // 端末の実際のGPS取得地点。乗車地点調整円の中心、および乗車地点調整の
+  // クランプ基準として使う。位置情報が取得できなかった場合（権限/サービス
+  // 拒否）はnull — その場合は基準点が無いため、代わりにタップで自由に
+  // 乗車地点を設定する（_onMapTap参照）。
+  LatLng? _deviceLocation;
+  // The adjustable pickup pin — defaults to _deviceLocation once known, but
+  // can be dragged within _pickupRadiusMeters of it (see
+  // _onPickupMarkerDragEnd).
+  // 調整可能な乗車地点ピン。_deviceLocationが判明次第それをデフォルトにするが、
+  // そこから_pickupRadiusMeters以内であればドラッグで動かせる
+  // （_onPickupMarkerDragEnd参照）。
   LatLng? _pickupLocation;
   LatLng? _dropoffLocation;
   bool _isLocatingDevice = true;
@@ -66,6 +128,32 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
     super.dispose();
   }
 
+  /// Animates the camera to [_pickupLocation] at a zoom close enough that
+  /// the pickup-radius circle is comfortably visible/draggable, rather than
+  /// the initial city-wide view (14). No-ops if either isn't ready yet —
+  /// called from both the geolocation success path and `onMapCreated`,
+  /// since either can resolve first (see their call sites for why).
+  ///
+  /// At 50m, `_pickupRadiusMeters` would render as a nearly invisible ~11px
+  /// circle at zoom 15 — too small to see or to usefully drag a pin around
+  /// within. 18 puts it at roughly a 90px circle, comfortably visible and
+  /// draggable on a touchscreen.
+  ///
+  /// [_pickupLocation] にカメラを移動する。初期の街全体ビュー（14）ではなく、
+  /// 乗車地点調整円が十分視認・ドラッグできるズームまで寄せる。
+  /// どちらかがまだ準備できていなければ何もしない — 位置情報取得成功時と
+  /// `onMapCreated` の両方から呼ばれる。どちらが先に解決するかは
+  /// 状況次第のため（それぞれの呼び出し箇所のコメント参照）。
+  ///
+  /// 50mの場合、ズーム15では `_pickupRadiusMeters` が約11pxの円にしか
+  /// ならず、視認も範囲内でのピン操作も実用的でない。18にすると約90pxの
+  /// 円になり、タッチ操作でも十分視認・ドラッグできる大きさになる。
+  void _zoomToPickup() {
+    final pickup = _pickupLocation;
+    if (pickup == null) return;
+    _mapController?.animateCamera(CameraUpdate.newLatLngZoom(pickup, 18));
+  }
+
   Future<void> _initPickupFromDeviceLocation() async {
     try {
       if (!await Geolocator.isLocationServiceEnabled()) {
@@ -84,12 +172,11 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
       final position = await Geolocator.getCurrentPosition();
       if (!mounted) return;
       setState(() {
-        _pickupLocation = LatLng(position.latitude, position.longitude);
+        _deviceLocation = LatLng(position.latitude, position.longitude);
+        _pickupLocation = _deviceLocation;
         _isLocatingDevice = false;
       });
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLngZoom(_pickupLocation!, 15),
-      );
+      _zoomToPickup();
     } on _LocationError catch (e) {
       if (!mounted) return;
       setState(() {
@@ -106,11 +193,56 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   }
 
   void _onMapTap(LatLng position) {
+    // No GPS fix to constrain against — let the very first tap set pickup
+    // (matches the fallback banner's "地図をタップして乗車地点を選ぶことも
+    // できます" promise); every tap after that sets dropoff, same as the
+    // normal (device-location-known) flow below.
+    // GPS取得地点が無く制約の基準が無い場合、最初のタップだけ乗車地点を
+    // 設定する（フォールバックバナーの「地図をタップして乗車地点を選ぶ
+    // こともできます」という案内に合わせる）。それ以降のタップは、
+    // 通常（GPS取得済み）のフローと同様に降車地点を設定する。
+    if (_deviceLocation == null && _pickupLocation == null) {
+      setState(() => _pickupLocation = position);
+      return;
+    }
     setState(() => _dropoffLocation = position);
   }
 
   void _onPickupMarkerDragEnd(LatLng position) {
-    setState(() => _pickupLocation = position);
+    setState(() => _pickupLocation = _clampToPickupRadius(position));
+  }
+
+  /// Clamps [candidate] to within [_pickupRadiusMeters] of [_deviceLocation]
+  /// — if it's already inside, returns it unchanged; if it's outside, slides
+  /// it back along the same bearing to sit exactly on the circle's edge.
+  /// Returns [candidate] as-is if there's no GPS fix to clamp against.
+  /// [candidate] を [_deviceLocation] から [_pickupRadiusMeters] 以内に
+  /// クランプする — 既に範囲内ならそのまま返し、範囲外なら同じ方位角の
+  /// まま円周上ちょうどの位置まで引き戻す。クランプの基準となるGPS取得地点が
+  /// 無い場合は [candidate] をそのまま返す。
+  LatLng _clampToPickupRadius(LatLng candidate) {
+    final deviceLocation = _deviceLocation;
+    if (deviceLocation == null) return candidate;
+
+    final distance = Geolocator.distanceBetween(
+      deviceLocation.latitude,
+      deviceLocation.longitude,
+      candidate.latitude,
+      candidate.longitude,
+    );
+    if (distance <= _pickupRadiusMeters) return candidate;
+
+    final bearing = Geolocator.bearingBetween(
+      deviceLocation.latitude,
+      deviceLocation.longitude,
+      candidate.latitude,
+      candidate.longitude,
+    );
+    return _destinationPoint(
+      deviceLocation,
+      bearingDegrees: bearing,
+      distanceMeters: _pickupRadiusMeters,
+    );
   }
 
   Future<void> _signOut() async {
@@ -172,9 +304,45 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
               target: _registroCityCenter,
               zoom: 14,
             ),
-            onMapCreated: (controller) => _mapController = controller,
+            onMapCreated: (controller) {
+              _mapController = controller;
+              // Covers the case where the device's GPS fix resolves before
+              // the map finishes initializing (observed in headless/mocked
+              // geolocation testing, but possible on a slow device too) —
+              // without this, _zoomToPickup's earlier call from
+              // _initPickupFromDeviceLocation silently no-ops on a
+              // still-null controller and the map is left at the initial
+              // city-wide view.
+              // GPS取得地点の解決が地図の初期化完了より先に終わるケースに
+              // 対応する（ヘッドレス/モック位置情報でのテストで確認済みだが、
+              // 低速な端末でも起こりうる）— これが無いと、
+              // _initPickupFromDeviceLocationからの_zoomToPickup呼び出しが
+              // まだnullなコントローラに対して無言でno-opになり、地図が
+              // 初期の街全体ビューのまま残ってしまう。
+              _zoomToPickup();
+            },
             onTap: _onMapTap,
             markers: markers,
+            // Visualizes _pickupRadiusMeters around the device's actual GPS
+            // fix, so the drag constraint in _clampToPickupRadius is
+            // something the user can see, not just silently enforced.
+            // _pickupRadiusMetersを端末の実際のGPS取得地点の周りに可視化する。
+            // _clampToPickupRadiusでのドラッグ制約を、暗黙に強制するのではなく
+            // ユーザーが目で見て分かるようにする。
+            circles: _deviceLocation == null
+                ? const {}
+                : {
+                    Circle(
+                      circleId: const CircleId('pickup_radius'),
+                      center: _deviceLocation!,
+                      radius: _pickupRadiusMeters,
+                      strokeWidth: 2,
+                      strokeColor: Theme.of(context).colorScheme.primary,
+                      fillColor: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.12),
+                    ),
+                  },
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
           ),
@@ -219,6 +387,19 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
                           ? l10n.passengerPickupNotSet
                           : l10n.passengerPickupSet,
                     ),
+                    if (_deviceLocation != null) ...[
+                      const SizedBox(height: 2),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 22),
+                        child: Text(
+                          l10n.passengerPickupRadiusHint,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     _RideStatusLine(
                       icon: Icons.location_on,

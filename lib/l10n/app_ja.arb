@@ -24,6 +24,7 @@
   "passengerBackToPickupTooltip": "乗車地点に戻る",
   "passengerPickupNotSet": "乗車地点: 未設定",
   "passengerPickupSet": "乗車地点: 設定済み",
+  "passengerPickupRadiusHint": "円の中でピンをドラッグして乗車地点を調整できます",
   "passengerDropoffNotSet": "降車地点: 地図をタップして選択",
   "passengerDropoffSet": "降車地点: 設定済み",
   "passengerRequestRideButton": "配車を依頼する",

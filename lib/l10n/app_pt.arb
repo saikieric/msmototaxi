@@ -87,6 +87,10 @@
   "@passengerPickupSet": {
     "description": "Status line shown once a pickup point is set."
   },
+  "passengerPickupRadiusHint": "Arraste o pino dentro do círculo para ajustar o ponto de embarque",
+  "@passengerPickupRadiusHint": {
+    "description": "Small caption shown under the pickup status line once the device's GPS location is known, explaining the draggable-within-radius circle drawn on the map."
+  },
   "passengerDropoffNotSet": "Ponto de desembarque: toque no mapa para selecionar",
   "@passengerDropoffNotSet": {
     "description": "Status line shown before a dropoff point is set."
