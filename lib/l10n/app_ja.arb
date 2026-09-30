@@ -29,8 +29,6 @@
   "passengerDropoffSet": "降車地点: 設定済み",
   "passengerRequestRideButton": "配車を依頼する",
   "passengerRequestRideStubMessage": "配車依頼機能は準備中です（認証・マッチング実装後に対応）",
-  "passengerNavigateWithWazeTooltip": "Wazeで経路を見る",
-  "wazeLaunchFailedMessage": "この端末ではWazeを開けませんでした",
 
   "driverOnlineStatus": "オンライン（依頼を受付中）",
   "driverOfflineStatus": "オフライン",

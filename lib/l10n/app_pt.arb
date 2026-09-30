@@ -107,14 +107,6 @@
   "@passengerRequestRideStubMessage": {
     "description": "Snackbar shown when tapping the (currently stubbed) request-ride button. See PassengerHomeScreen._requestRide."
   },
-  "passengerNavigateWithWazeTooltip": "Ver rota no Waze",
-  "@passengerNavigateWithWazeTooltip": {
-    "description": "Tooltip on the icon button next to the dropoff status line that opens Waze navigating to the dropoff point. Enabled only once a dropoff point is set."
-  },
-  "wazeLaunchFailedMessage": "Não foi possível abrir o Waze neste dispositivo.",
-  "@wazeLaunchFailedMessage": {
-    "description": "Snackbar shown if launchWazeNavigation() reports failure (Waze not installed and no browser fallback available). Shared by both passenger and driver screens."
-  },
 
   "driverOnlineStatus": "Online (recebendo solicitações)",
   "@driverOnlineStatus": {
