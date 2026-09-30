@@ -36,6 +36,21 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
     ref.read(devAuthBypassProvider.notifier).state = false;
   }
 
+  void _showWazeStub() {
+    final l10n = AppLocalizations.of(context)!;
+    // TODO: Once ride matching exists, call launchWazeNavigation() with
+    // the matched ride's pickup point here (see
+    // core/navigation/waze_launcher.dart and the AppBar action's own
+    // comment above for why this is a stub for now).
+    // TODO: 配車マッチングが実装されたら、マッチしたrideの乗車地点座標で
+    // ここから launchWazeNavigation() を呼ぶ（現状スタブである理由は
+    // core/navigation/waze_launcher.dart とAppBarアクション側のコメント
+    // 参照）。
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.driverNavigateWithWazeStubMessage)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -44,6 +59,21 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
       appBar: AppBar(
         title: Text(l10n.appTitleDriver),
         actions: [
+          // Stubbed: there's no assigned ride/pickup coordinate to
+          // navigate to yet, since ride matching isn't implemented (see
+          // CLAUDE.md). The button stays visible — tapping it explains
+          // why via _showWazeStub, rather than being silently disabled —
+          // so drivers can see where this will live once matching exists.
+          // スタブ: 配車マッチングが未実装のため（CLAUDE.md参照）、
+          // ナビ対象となる乗車地点の座標がまだ無い。ボタンは表示したまま
+          // にし、タップすると_showWazeStubで理由を説明する
+          // （黙って無効化するのではなく）— マッチング実装後にここへ
+          // 機能が入ることをドライバーに示すため。
+          IconButton(
+            onPressed: _showWazeStub,
+            tooltip: l10n.driverNavigateWithWazeTooltip,
+            icon: const Icon(Icons.navigation_outlined),
+          ),
           const LanguageSwitcherButton(),
           IconButton(
             icon: const Icon(Icons.logout),

@@ -107,6 +107,14 @@
   "@passengerRequestRideStubMessage": {
     "description": "Snackbar shown when tapping the (currently stubbed) request-ride button. See PassengerHomeScreen._requestRide."
   },
+  "passengerNavigateWithWazeTooltip": "Ver rota no Waze",
+  "@passengerNavigateWithWazeTooltip": {
+    "description": "Tooltip on the icon button next to the dropoff status line that opens Waze navigating to the dropoff point. Enabled only once a dropoff point is set."
+  },
+  "wazeLaunchFailedMessage": "Não foi possível abrir o Waze neste dispositivo.",
+  "@wazeLaunchFailedMessage": {
+    "description": "Snackbar shown if launchWazeNavigation() reports failure (Waze not installed and no browser fallback available). Shared by both passenger and driver screens."
+  },
 
   "driverOnlineStatus": "Online (recebendo solicitações)",
   "@driverOnlineStatus": {
@@ -123,5 +131,13 @@
   "driverGoOnlineToReceiveRequests": "Fique online para receber solicitações",
   "@driverGoOnlineToReceiveRequests": {
     "description": "Center-of-screen message shown while offline."
+  },
+  "driverNavigateWithWazeTooltip": "Navegar com Waze",
+  "@driverNavigateWithWazeTooltip": {
+    "description": "Tooltip on the AppBar icon button for Waze navigation. Currently always shows driverNavigateWithWazeStubMessage on tap — see DriverHomeScreen, there's no assigned ride/pickup coordinate to navigate to yet since ride matching isn't implemented."
+  },
+  "driverNavigateWithWazeStubMessage": "A navegação pelo Waze ficará disponível assim que uma corrida for aceita (o pareamento de corridas ainda está em desenvolvimento).",
+  "@driverNavigateWithWazeStubMessage": {
+    "description": "Snackbar shown when tapping the (currently stubbed, no ride data yet) Waze navigation button on the driver screen."
   }
 }

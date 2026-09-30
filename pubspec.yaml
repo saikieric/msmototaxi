@@ -55,6 +55,11 @@ dependencies:
   # used directly in test/widget_test.dart to mock session storage for
   # supabase_flutter under `flutter test`.
   shared_preferences: ^2.5.5
+  # Opens external apps via URL (currently: Waze deep links) — see
+  # core/navigation/waze_launcher.dart.
+  # 外部アプリをURL経由で開く（現状はWazeのディープリンク用）—
+  # core/navigation/waze_launcher.dart参照。
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

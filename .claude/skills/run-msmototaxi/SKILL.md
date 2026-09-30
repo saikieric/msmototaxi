@@ -362,3 +362,33 @@ flutter run                                                   # デフォルト�
   純粋に情報提供のみのオーバーレイ（位置情報エラーバナー）は地図に
   重ねたままでよい — 読んでいる最中に地図へタップが漏れても軽微な副作用
   であり、操作不能になるわけではないため。
+
+- **Verifying an external deep link (e.g. Waze) needs `context.on('page',
+  ...)` + request logging, not just `page.on('popup')` timing** —
+  `url_launcher`'s web implementation opens the link via a new tab
+  (`window.open`), and the destination site (Waze) then does its own
+  client-side redirect before the final URL (with query params intact)
+  settles — reading `popup.url()` immediately after the click can catch
+  an earlier, incomplete intermediate URL. Attach
+  `context.on('page', p => p.on('request', ...))` *before* triggering the
+  action, wait a few seconds, and read the *last* navigated URL, not the
+  first. Confirmed here: `launchWazeNavigation()`'s `ll=` param survived
+  Waze's `/ul` → `/live-map/directions` redirect and reappeared as
+  `to=ll.<lat>,<lon>` in the final URL, with map tiles/reverse-geocoding
+  requests for that exact coordinate as corroborating evidence — don't
+  just trust the first URL string you see.
+
+  **外部ディープリンク（Waze等）の検証には、`page.on('popup')`の
+  タイミングだけでなく`context.on('page', ...)`＋リクエストログが必要**
+  — `url_launcher`のWeb実装はリンクを新しいタブ（`window.open`）で開き、
+  遷移先のサイト（Waze）はその後、最終的なURL（クエリパラメータを保持
+  したまま）が確定するまで独自にクライアント側リダイレクトを行う —
+  クリック直後に`popup.url()`を読むと、まだ確定していない途中のURLを
+  拾ってしまうことがある。アクションを起こす*前*に
+  `context.on('page', p => p.on('request', ...))`を仕込んでおき、数秒
+  待ってから*最後に*遷移したURLを読むこと（最初のものではなく）。
+  この環境で確認済み: `launchWazeNavigation()`の`ll=`パラメータは
+  Wazeの`/ul` → `/live-map/directions`リダイレクトを経ても失われず、
+  最終URLに`to=ll.<緯度>,<経度>`として再登場し、その正確な座標での
+  地図タイル/逆ジオコーディングリクエストも裏付けとして確認できた —
+  最初に見えたURL文字列だけを鵜呑みにしないこと。

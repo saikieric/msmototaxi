@@ -9,6 +9,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/auth/auth_repository.dart';
 import '../../../core/auth/dev_auth_bypass.dart';
 import '../../../core/locale/language_switcher_button.dart';
+import '../../../core/navigation/waze_launcher.dart';
 import '../../../l10n/generated/app_localizations.dart';
 
 /// Registro, SP city center — used as the default map camera position
@@ -335,6 +336,23 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
     );
   }
 
+  /// Opens Waze navigating to the dropoff point, so the passenger can
+  /// preview the route/ETA before requesting a ride. See
+  /// core/navigation/waze_launcher.dart for why this always routes from
+  /// the device's current position, not from the pickup point.
+  /// 降車地点を目的地にWazeを開く。配車を依頼する前に経路/所要時間を
+  /// プレビューできるようにする。なぜ常に端末の現在地からのルートになり
+  /// 乗車地点からにはならないかは core/navigation/waze_launcher.dart 参照。
+  Future<void> _openWazeToDropoff() async {
+    final l10n = AppLocalizations.of(context)!;
+    final launched = await launchWazeNavigation(_dropoffLocation!);
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.wazeLaunchFailedMessage)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -572,12 +590,29 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
                       ),
                     ),
                   const SizedBox(height: 4),
-                  _RideStatusLine(
-                    icon: Icons.location_on,
-                    color: Colors.red,
-                    label: _dropoffLocation == null
-                        ? l10n.passengerDropoffNotSet
-                        : l10n.passengerDropoffSet,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _RideStatusLine(
+                          icon: Icons.location_on,
+                          color: Colors.red,
+                          label: _dropoffLocation == null
+                              ? l10n.passengerDropoffNotSet
+                              : l10n.passengerDropoffSet,
+                        ),
+                      ),
+                      // Opens Waze to preview the route to the dropoff
+                      // point — see _openWazeToDropoff's doc comment.
+                      // Wazeで降車地点までの経路をプレビューする —
+                      // _openWazeToDropoffのdocコメント参照。
+                      IconButton(
+                        onPressed: _dropoffLocation == null
+                            ? null
+                            : _openWazeToDropoff,
+                        tooltip: l10n.passengerNavigateWithWazeTooltip,
+                        icon: const Icon(Icons.navigation_outlined),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   FilledButton.icon(
