@@ -62,25 +62,30 @@ LatLng _destinationPoint(
   return LatLng(lat2 * 180 / math.pi, lon2 * 180 / math.pi);
 }
 
-/// Renders a simple filled-circle pin bitmap in [color], for use as a
-/// [Marker.icon].
-/// [color] で塗りつぶした単純な円形ピンの画像を生成し、[Marker.icon] として
-/// 使えるようにする。
-///
-/// `BitmapDescriptor.defaultMarkerWithHue` is used instead on Android/iOS,
-/// but Flutter Web's Google Maps implementation has a long-standing,
-/// unresolved bug where it ignores the hue and always renders the standard
-/// red pin (flutter/flutter#87917, #161948) — with only that, the pickup
-/// (meant to be green) and dropoff (red) markers were indistinguishable on
-/// web. Drawing our own bitmap sidesteps the bug entirely and looks the
-/// same on every platform.
-/// Android/iOSでは代わりに`BitmapDescriptor.defaultMarkerWithHue`を使うが、
-/// Flutter WebのGoogle Maps実装にはhueを無視して常に標準の赤いピンを描画する
-/// という長年未解決のバグがある（flutter/flutter#87917、#161948）—
-/// これだけだと、乗車地点（本来は緑）と降車地点（赤）のマーカーがWeb上で
-/// 区別できなくなってしまう。自前でビットマップを描画することでこのバグを
-/// 完全に回避でき、かつどのプラットフォームでも同じ見た目になる。
-Future<BitmapDescriptor> _createPinBitmap(Color color) async {
+// Shared reasoning for why both drawing functions below exist instead of
+// BitmapDescriptor.defaultMarkerWithHue: Flutter Web's Google Maps
+// implementation has a long-standing, unresolved bug where it ignores the
+// hue and always renders the standard red pin (flutter/flutter#87917,
+// #161948) — with only that, the pickup (meant to be green) and dropoff
+// (red) markers were indistinguishable on web. Drawing our own bitmaps
+// sidesteps the bug entirely and looks the same on every platform.
+// 下の2つの描画関数が、`BitmapDescriptor.defaultMarkerWithHue`の代わりに
+// 存在する共通の理由: Flutter WebのGoogle Maps実装にはhueを無視して常に
+// 標準の赤いピンを描画するという長年未解決のバグがある
+// （flutter/flutter#87917、#161948）— これだけだと、乗車地点（本来は緑）と
+// 降車地点（赤）のマーカーがWeb上で区別できなくなってしまう。自前で
+// ビットマップを描画することでこのバグを完全に回避でき、かつどの
+// プラットフォームでも同じ見た目になる。
+
+/// Renders a filled circle in [color], for the device-location marker — a
+/// plain dot, matching the "you are here" convention from native maps
+/// apps (see the `device_location` marker's own doc comment), as opposed
+/// to the teardrop pin shape [_createPinBitmap] draws for pickup/dropoff.
+/// [color] で塗りつぶした単純な円を描画する。現在地マーカー用 —
+/// ネイティブ地図アプリ共通の「現在地」慣習（`device_location`マーカー
+/// 自体のdocコメント参照）に合わせた単純なドット。乗車/降車地点用に
+/// [_createPinBitmap] が描く涙形ピンとは対照的な形。
+Future<BitmapDescriptor> _createDotBitmap(Color color) async {
   const size = 64.0;
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder, const Rect.fromLTWH(0, 0, size, size));
@@ -100,6 +105,72 @@ Future<BitmapDescriptor> _createPinBitmap(Color color) async {
   final image = await recorder.endRecording().toImage(
     size.toInt(),
     size.toInt(),
+  );
+  final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+  return BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
+}
+
+const _pinWidth = 56.0;
+const _pinHeight = 76.0;
+const _pinHeadRadius = 17.0;
+const _pinPad = 4.0;
+
+/// Fraction down [_pinHeight] where the pin's tip sits — the exact point
+/// that marks the geographic coordinate. Passed as the [Marker.anchor] for
+/// pickup/dropoff so the tip, not the bitmap's center, lands on the
+/// coordinate (see `_PassengerHomeScreenState.build`'s anchor comment for
+/// why this matters — a plain circle bitmap needed anchor (0.5, 0.5)
+/// instead; a pin shape's marked point is its tip, so it needs (0.5, 1.0)
+/// in this coordinate system's proportions).
+/// [_pinHeight]のうち、ピンの先端がある位置の割合。地理座標を実際に指す点。
+/// 乗車/降車地点の[Marker.anchor]としてこれを渡し、画像の中心ではなく先端が
+/// 座標に来るようにする（なぜこれが重要かは
+/// `_PassengerHomeScreenState.build`のアンカー関連コメント参照 — 単純な円の
+/// 画像は代わりにアンカー(0.5, 0.5)が必要だった。ピン形状が指す点は先端
+/// なので、この座標系の比率では(0.5, 1.0)が必要）。
+const pinTipAnchorFraction = (_pinHeight - _pinPad) / _pinHeight;
+
+/// Renders a classic teardrop map-pin silhouette (a round head over a
+/// tapered tail meeting at a point) filled with [color], for the
+/// pickup/dropoff markers. See [pinTipAnchorFraction] for how callers must
+/// anchor it, and the comment block above [_createDotBitmap] for why this
+/// is hand-drawn instead of using a built-in pin.
+/// 涙形の地図ピン（丸い頭部と、一点に収束する先細りの尾）を[color]で
+/// 塗りつぶして描画する。乗車/降車地点マーカー用。呼び出し側でどう
+/// アンカーする必要があるかは[pinTipAnchorFraction]参照。なぜ組み込みの
+/// ピンを使わず自前で描画するかは[_createDotBitmap]直前のコメント参照。
+Future<BitmapDescriptor> _createPinBitmap(Color color) async {
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(
+    recorder,
+    const Rect.fromLTWH(0, 0, _pinWidth, _pinHeight),
+  );
+  const cx = _pinWidth / 2;
+  const cy = _pinPad + _pinHeadRadius;
+  const tipY = _pinHeight - _pinPad;
+  const tailHalfWidth = _pinHeadRadius * 0.55;
+
+  final head = Path()
+    ..addOval(Rect.fromCircle(center: const Offset(cx, cy), radius: _pinHeadRadius));
+  final tail = Path()
+    ..moveTo(cx - tailHalfWidth, cy)
+    ..lineTo(cx + tailHalfWidth, cy)
+    ..lineTo(cx, tipY)
+    ..close();
+  final pin = Path.combine(PathOperation.union, head, tail);
+
+  canvas.drawPath(pin, Paint()..color = color);
+  canvas.drawPath(
+    pin,
+    Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3,
+  );
+
+  final image = await recorder.endRecording().toImage(
+    _pinWidth.toInt(),
+    _pinHeight.toInt(),
   );
   final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
   return BitmapDescriptor.bytes(bytes!.buffer.asUint8List());
@@ -199,7 +270,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
       // 視認性が下がるだけのため。
       _createPinBitmap(teaAccent),
       _createPinBitmap(toriiAccent),
-      _createPinBitmap(Colors.blue),
+      _createDotBitmap(Colors.blue),
     ]);
     if (!mounted) return;
     setState(() {
@@ -348,20 +419,24 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    // Our custom marker bitmaps are plain circles (no pointed pin tip), so
-    // anchor them at their exact center (0.5, 0.5) rather than the default
-    // (0.5, 1.0) — the default assumes a teardrop pin whose bottom tip
-    // marks the location, which would place a circle floating half its
-    // own height above the actual coordinate.
-    // 自前のマーカー画像は（先端の無い）単純な円のため、デフォルトの
-    // アンカー(0.5, 1.0)ではなく、中心(0.5, 0.5)を基準にする —
-    // デフォルトは先端が地点を指す涙形ピンを想定しており、そのままだと
-    // 円が実際の座標より自分の高さの半分だけ浮いた位置に表示されてしまう。
-    const circleAnchor = Offset(0.5, 0.5);
+    // The device-location bitmap is a plain circle (no pointed tip), so it
+    // anchors at its exact center (0.5, 0.5) — the Marker default (0.5,
+    // 1.0) assumes a teardrop pin whose bottom tip marks the location,
+    // which would place a centerless circle floating half its own height
+    // above the actual coordinate. The pickup/dropoff bitmaps ARE teardrop
+    // pins now (see _createPinBitmap), so they use their own tip-relative
+    // anchor instead — see pinTipAnchorFraction's doc comment.
+    // 現在地の画像は（先端の無い）単純な円のため、その中心(0.5, 0.5)を
+    // 基準にする — Markerのデフォルト(0.5, 1.0)は先端が地点を指す涙形ピンを
+    // 想定しており、そのままだと中心の無い円が実際の座標より自分の高さの
+    // 半分だけ浮いた位置に表示されてしまう。乗車/降車地点の画像は今は
+    // 涙形ピンそのもの（_createPinBitmap参照）なので、代わりに先端基準の
+    // 専用アンカーを使う — pinTipAnchorFractionのdocコメント参照。
+    const dotAnchor = Offset(0.5, 0.5);
+    const pinAnchor = Offset(0.5, pinTipAnchorFraction);
 
     final markers = <Marker>{
       // The device's own live position — see _deviceLocationIcon's field
@@ -375,7 +450,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
           markerId: const MarkerId('device_location'),
           position: _deviceLocation!,
           icon: _deviceLocationIcon ?? BitmapDescriptor.defaultMarker,
-          anchor: circleAnchor,
+          anchor: dotAnchor,
           zIndexInt: 0,
         ),
       if (_pickupLocation != null)
@@ -393,7 +468,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
           // 非同期描画が完了するまでのごく短い間は、通常のデフォルト
           // マーカーにフォールバックする。
           icon: _pickupIcon ?? BitmapDescriptor.defaultMarker,
-          anchor: circleAnchor,
+          anchor: pinAnchor,
           zIndexInt: 1,
           infoWindow: InfoWindow(title: l10n.passengerPickupMarkerTitle),
         ),
@@ -402,7 +477,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
           markerId: const MarkerId('dropoff'),
           position: _dropoffLocation!,
           icon: _dropoffIcon ?? BitmapDescriptor.defaultMarker,
-          anchor: circleAnchor,
+          anchor: pinAnchor,
           zIndexInt: 1,
           infoWindow: InfoWindow(title: l10n.passengerDropoffMarkerTitle),
         ),
