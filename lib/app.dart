@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/locale/locale_controller.dart';
 import 'core/router/app_router.dart';
+import 'core/theme/motogo_theme.dart';
 import 'flavors.dart';
 import 'l10n/generated/app_localizations.dart';
 
@@ -31,12 +32,19 @@ class MotoGoApp extends ConsumerWidget {
         };
       },
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF9C8DB6),
-        ),
-      ),
+      // See core/theme/motogo_theme.dart for the palette rationale (torii
+      // vermillion + tea green, both specific to Registro itself) — this
+      // replaces the Flutter starter template's placeholder lavender
+      // seedColor. themeMode defaults to ThemeMode.system, so the app
+      // simply follows the device's own light/dark setting rather than
+      // reimplementing that switch itself.
+      // パレットの根拠は core/theme/motogo_theme.dart 参照
+      // （鳥居の朱色＋茶畑の緑、どちらもRegistro固有）— Flutter初期
+      // テンプレートの仮のラベンダー色seedColorを置き換える。themeMode は
+      // デフォルトの ThemeMode.system のままにしているため、明暗切り替え
+      // 自体を自前で作らず、端末側のライト/ダーク設定にそのまま従う。
+      theme: motogoLightTheme,
+      darkTheme: motogoDarkTheme,
       // null means "follow the device's language" — resolved against
       // supportedLocales by localeResolutionCallback below, falling back
       // to pt (see core/locale/locale_controller.dart for why pt is the

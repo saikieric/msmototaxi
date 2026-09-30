@@ -392,3 +392,23 @@ flutter run                                                   # デフォルト�
   最終URLに`to=ll.<緯度>,<経度>`として再登場し、その正確な座標での
   地図タイル/逆ジオコーディングリクエストも裏付けとして確認できた —
   最初に見えたURL文字列だけを鵜呑みにしないこと。
+
+- **Verifying dark mode: pass `colorScheme` on `browser.newContext()`, not
+  a page-level trick** — `context.newContext({ colorScheme: 'dark' })` (or
+  `'light'`) makes the whole browser context report that
+  `prefers-color-scheme`, which is exactly what `motogo_theme.dart`'s
+  `ThemeMode.system` reads. No need to fake it via `page.emulateMedia`
+  or inject CSS. Confirmed here for both the login screen and the
+  passenger home screen (map markers, status card, buttons all repaint
+  correctly in both modes — see `login-dark.png`/`passenger-home-dark.png`
+  in this skill's `screenshots/`).
+
+  **ダークモードの検証: ページ側の小細工ではなく`browser.newContext()`の
+  `colorScheme`オプションを使う** — `context.newContext({ colorScheme:
+  'dark' })`（または`'light'`）で、ブラウザコンテキスト全体がその
+  `prefers-color-scheme`を報告するようになる。これは`motogo_theme.dart`の
+  `ThemeMode.system`がまさに読み取っている値。`page.emulateMedia`や
+  CSS注入で偽装する必要は無い。この環境でログイン画面・乗客用ホーム画面
+  （地図マーカー・ステータスカード・ボタンいずれも両モードで正しく
+  再描画されること）を確認済み — このスキルの`screenshots/`内の
+  `login-dark.png`/`passenger-home-dark.png`参照。

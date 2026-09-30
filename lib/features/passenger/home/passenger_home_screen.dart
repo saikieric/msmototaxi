@@ -9,6 +9,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../../core/auth/auth_repository.dart';
 import '../../../core/auth/dev_auth_bypass.dart';
 import '../../../core/locale/language_switcher_button.dart';
+import '../../../core/theme/motogo_theme.dart';
 import '../../../l10n/generated/app_localizations.dart';
 
 /// Registro, SP city center — used as the default map camera position
@@ -184,8 +185,20 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
 
   Future<void> _loadMarkerIcons() async {
     final icons = await Future.wait([
-      _createPinBitmap(Colors.green),
-      _createPinBitmap(Colors.red),
+      // Pickup/dropoff use the brand palette (see core/theme/motogo_theme.dart)
+      // instead of generic Material red/green, so the map matches the rest
+      // of the app. The device-location dot deliberately stays plain blue —
+      // that's the universal "this is your live GPS position" convention
+      // from every native maps app, and changing it away from blue would
+      // hurt recognizability for no brand benefit.
+      // 乗車地点/降車地点はブランドカラー（core/theme/motogo_theme.dart参照）
+      // を使い、汎用的なMaterialの赤・緑にはしない — 地図がアプリ全体の
+      // 色と揃うように。現在地の点だけは意図的に青のまま —
+      // あらゆるネイティブ地図アプリ共通の「これが自分の現在地」という
+      // 慣習色であり、ブランド上のメリット無しにこれを変えると
+      // 視認性が下がるだけのため。
+      _createPinBitmap(teaAccent),
+      _createPinBitmap(toriiAccent),
       _createPinBitmap(Colors.blue),
     ]);
     if (!mounted) return;
@@ -537,7 +550,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
                       Expanded(
                         child: _RideStatusLine(
                           icon: Icons.circle,
-                          color: Colors.green,
+                          color: teaAccent,
                           label: _pickupLocation == null
                               ? l10n.passengerPickupNotSet
                               : l10n.passengerPickupSet,
@@ -575,7 +588,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
                   const SizedBox(height: 4),
                   _RideStatusLine(
                     icon: Icons.location_on,
-                    color: Colors.red,
+                    color: toriiAccent,
                     label: _dropoffLocation == null
                         ? l10n.passengerDropoffNotSet
                         : l10n.passengerDropoffSet,

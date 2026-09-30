@@ -94,7 +94,17 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
               children: [
                 Icon(
                   _isOnline ? Icons.circle : Icons.circle_outlined,
-                  color: _isOnline ? Colors.green : Colors.grey,
+                  // "Online" uses the theme's secondary (tea green — see
+                  // core/theme/motogo_theme.dart), matching the pickup
+                  // marker/pill on the passenger side rather than a
+                  // generic Material green.
+                  // 「オンライン」はテーマのsecondary（茶の緑 —
+                  // core/theme/motogo_theme.dart参照）を使う。汎用的な
+                  // Material緑ではなく、乗客側の乗車地点マーカー/ピルと
+                  // 揃える。
+                  color: _isOnline
+                      ? Theme.of(context).colorScheme.secondary
+                      : Theme.of(context).colorScheme.outline,
                   size: 14,
                 ),
                 const SizedBox(width: 8),

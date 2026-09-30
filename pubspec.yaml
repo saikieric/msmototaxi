@@ -60,6 +60,27 @@ dependencies:
   # 外部アプリをURL経由で開く（現状はWazeのディープリンク用）—
   # core/navigation/waze_launcher.dart参照。
   url_launcher: ^6.3.2
+  # Unbounded (display) + Noto Sans JP (body) — see core/theme/motogo_theme.dart.
+  # Fetched over network on first use and cached on-device by the package;
+  # fine for now, but worth bundling as local assets later if Registro-area
+  # connectivity turns out to be unreliable for first launches.
+  # Unbounded（見出し用）＋ Noto Sans JP（本文用）—
+  # core/theme/motogo_theme.dart参照。初回利用時にネットワーク経由で取得し
+  # 端末側にキャッシュされる方式（パッケージの仕様）。今は問題無いが、
+  # Registro地域での通信事情次第では、後でローカルアセットとして
+  # 同梱する方式への変更を検討する価値がある。
+  #
+  # Pinned below 9.0.0: that version moved its TextTheme/TextStyle API onto
+  # a separate `material_ui` package that isn't the same type as this
+  # Flutter SDK's own `package:flutter/material.dart` TextTheme, so
+  # ThemeData(textTheme: ...) fails to compile against it. 8.2.1 still
+  # returns Flutter's native types.
+  # 9.0.0未満に固定: そのバージョンはTextTheme/TextStyle APIを別パッケージ
+  # `material_ui`に移行しており、これはこのFlutter SDK自身の
+  # `package:flutter/material.dart`のTextThemeとは別の型になるため、
+  # ThemeData(textTheme: ...)がコンパイルエラーになる。8.2.1はまだ
+  # Flutterネイティブの型を返す。
+  google_fonts: ^8.2.1
 
 dev_dependencies:
   flutter_test:
