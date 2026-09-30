@@ -70,6 +70,7 @@ test/
   widget_test.dart             <- smoke test; see flutter-check skill for why it mocks Supabase
 
 .claude/skills/                <- this skill + run-msmototaxi, flutter-check, supabase-migrate
+.claude/agents/                 <- feature-design / feature-implementation / verification subagents
 ```
 
 **Adding a new screen:** put it under `features/<passenger|driver|auth>/<flow-name>/`,
@@ -133,6 +134,34 @@ example.
   flutter-check/SKILL.md         <- flutter analyze + flutter test
   supabase-migrate/SKILL.md      <- create/apply DB migrations
 ```
+
+## `.claude/agents/`: the design → implement → verify pipeline / 設計→実装→検証の3エージェント
+
+```
+.claude/agents/
+  feature-design.md          <- reads the codebase, produces a plan; never writes code
+  feature-implementation.md  <- writes Dart/ARB/migrations from a plan; runs flutter-check itself
+  verification.md            <- runs flutter-check + run-msmototaxi (+ supabase-migrate's REST check) for evidence
+```
+
+For a non-trivial feature, dispatch in that order — each agent's own
+description says what it hands to the next. `feature-implementation`
+already self-checks with `flutter-check` before handing off, but
+`verification` is the one that actually builds/runs/screenshots the app
+and is the real gate before calling something done; don't skip straight
+from implementation to "done" without it. For a small, unambiguous fix,
+skipping straight to `feature-implementation` (or just doing it inline)
+is fine — the pipeline is for anything where the design isn't obvious or
+where "does this actually work" can't be answered by reading the diff.
+
+規模のある機能なら、上記の順で呼び出す — 各エージェントの
+descriptionに次へ何を渡すか書かれている。`feature-implementation`は
+引き渡し前に自分で`flutter-check`による自己チェックを行うが、実際に
+アプリをビルド/実行/スクリーンショット確認し「完了」の本当の関門となるのは
+`verification`— これを飛ばして実装から即「完了」にしないこと。小さく
+曖昧さの無い修正なら、`feature-implementation`に直接投げる（またはその場で
+直接直す）だけでよい — このパイプラインは、設計が自明でない場合や
+「本当に動くか」が差分を読むだけでは分からない場合のためのもの。
 
 - One skill directory per distinct task, named `<verb>-<subject>` or
   `<subject>-<verb>` (`run-msmototaxi`, `supabase-migrate`,
