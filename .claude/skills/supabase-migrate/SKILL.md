@@ -185,3 +185,47 @@ keyを使ってREST API経由で簡易確認するとよい（上記curlコマ�
   （`lib/core/supabase/supabase_config.dart` 参照）。マイグレーション自体には
   直接影響しないが、マイグレーション確認用のcurlで誤った形式のキーを
   使わないよう注意。
+
+- **Free-plan projects auto-pause after about a week of no API activity**
+  — confirmed here: after roughly three weeks without any request to this
+  project, `curl .../auth/v1/health` failed with `Could not resolve host`
+  (DNS-level, not just a slow response), and `supabase projects list`
+  showed `"status":"INACTIVE"`. There is **no CLI command to restore a
+  paused project** (`supabase projects restore`/`resume`/`unpause` don't
+  exist) — it must be done from the Dashboard: open
+  `https://supabase.com/dashboard/project/abjwfyzwveaeyaetpumb` and click
+  "Restore project". After clicking restore, the status goes
+  `INACTIVE` → `COMING_UP` → `ACTIVE_HEALTHY`; DNS starts resolving during
+  `COMING_UP` but the origin isn't up yet (a health-check curl returns
+  Cloudflare's `521 Web server is down` in between) — this whole sequence
+  took a little over 4 minutes end-to-end here. Poll `supabase projects
+  list` for `ACTIVE_HEALTHY` and the health-check curl for HTTP 200
+  before assuming it's still broken. If a project has gone unused for
+  roughly a week, check its status before spending time debugging
+  something else — the passenger/driver apps' current dev-auth-bypass
+  flow (see `CLAUDE.md`) never actually calls Supabase, so a paused
+  project won't show up as a blank screen or any obvious in-app error;
+  it just silently means any *real* Supabase call will fail.
+
+  **無料プランのプロジェクトは、API呼び出しが約1週間無いと自動的に
+  一時停止する** — この環境で確認済み: このプロジェクトへのリクエストが
+  約3週間無かった後、`curl .../auth/v1/health` が「ホスト名を解決できない」
+  （応答が遅いのではなく、DNSレベルで失敗）で失敗し、
+  `supabase projects list` は `"status":"INACTIVE"` を示した。
+  **一時停止したプロジェクトを復旧するCLIコマンドは存在しない**
+  （`supabase projects restore`/`resume`/`unpause`はどれも無い）—
+  Dashboardから行う必要がある:
+  `https://supabase.com/dashboard/project/abjwfyzwveaeyaetpumb` を開き
+  「Restore project」をクリックする。クリック後、ステータスは
+  `INACTIVE` → `COMING_UP` → `ACTIVE_HEALTHY` と遷移する。`COMING_UP`の間に
+  DNSは解決され始めるが、オリジンサーバー自体はまだ起動していない
+  （その間のヘルスチェックcurlはCloudflareの`521 Web server is down`を
+  返す）— この環境では一連の流れに合計4分強かかった。`supabase
+  projects list`で`ACTIVE_HEALTHY`になり、ヘルスチェックcurlがHTTP 200を
+  返すまでポーリングしてから、まだ壊れていると判断すること。約1週間
+  操作されていないプロジェクトがあれば、他の問題を疑って時間をかける前に
+  まずステータスを確認すること — 乗客/ドライバーアプリの現状の開発用
+  認証バイパスフロー（`CLAUDE.md`参照）は実際にはSupabaseを一切呼ばない
+  ため、プロジェクトが一時停止していてもアプリ内で白い画面や明白な
+  エラーとしては現れない — 単に、*実際の*Supabase呼び出しが静かに
+  失敗するだけになる。

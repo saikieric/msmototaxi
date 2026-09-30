@@ -412,3 +412,59 @@ flutter run                                                   # デフォルト�
   （地図マーカー・ステータスカード・ボタンいずれも両モードで正しく
   再描画されること）を確認済み — このスキルの`screenshots/`内の
   `login-dark.png`/`passenger-home-dark.png`参照。
+
+- **`flutter run -d chrome` (human path) can hit a persistent blank white
+  screen that has nothing to do with the app itself** — `flutter run`
+  launches Chrome with a fresh, throwaway `--user-data-dir` (isolated
+  from the user's normal browsing profile). If a proxy, VPN, or
+  corporate network policy is applied per-profile (a browser extension,
+  a profile-scoped PAC file) rather than system-wide, that throwaway
+  profile won't inherit it — even though the same URLs load fine in the
+  user's regular Chrome tab. Confirmed in this project: the throwaway
+  profile got `net::ERR_CONNECTION_TIMED_OUT` fetching
+  `www.gstatic.com/flutter-canvaskit/.../canvaskit.wasm` (Flutter Web's
+  rendering engine itself — nothing paints without it, hence the blank
+  white screen) and `fonts.gstatic.com/.../Roboto...woff2` (Flutter's
+  own default font, not anything this project added), while
+  `www.gstatic.com` loaded normally in the user's regular tab and
+  `maps.googleapis.com` loaded fine even inside the throwaway profile —
+  so it's specifically a `gstatic.com`-reachability difference between
+  profiles, not a blanket network block. **Workaround that resolved it**:
+  skip `flutter run`'s throwaway browser entirely — `flutter build web`
+  (see this skill's Build section), serve the output, and have the user
+  open that URL in their own regular Chrome tab instead of a
+  Flutter-launched one. Before spending time on this diagnosis, rule out
+  the simpler explanation first: debug-mode Flutter web is inherently
+  much slower to first-paint than a release build (large unoptimized
+  DDC/JS payload with no cache yet), and "still compiling" alone can
+  look like a stuck white screen for well over a minute on a slow
+  machine — check the browser console (F12 → Console) for actual
+  `net::ERR_*` errors before assuming there's a network problem at all.
+
+  **`flutter run -d chrome`（人間向け手順）で、アプリ自体とは無関係な
+  真っ白画面が固まったように続くことがある** — `flutter run`は、
+  ユーザーの普段のブラウジングプロファイルとは分離された、まっさらな
+  使い捨ての`--user-data-dir`でChromeを起動する。プロキシ・VPN・
+  社内ネットワークポリシーがシステム全体ではなくプロファイル単位
+  （ブラウザ拡張機能、プロファイル単位のPACファイル等）で適用されている
+  場合、その使い捨てプロファイルには反映されない — 同じURLがユーザーの
+  普段のChromeタブでは問題無く開けても。このプロジェクトで実際に確認:
+  使い捨てプロファイル側は`www.gstatic.com/flutter-canvaskit/.../
+  canvaskit.wasm`（Flutter Web自体の描画エンジン。これが無いと何も
+  描画されず、結果として白い画面になる）と`fonts.gstatic.com/.../
+  Roboto...woff2`（このプロジェクトが追加したものではない、Flutter標準の
+  デフォルトフォント）の取得で`net::ERR_CONNECTION_TIMED_OUT`になった一方、
+  `www.gstatic.com`はユーザーの普段のタブでは正常に開け、
+  `maps.googleapis.com`は使い捨てプロファイル内でも問題無く読み込めた —
+  つまり全面的なネットワーク遮断ではなく、プロファイル間で
+  `gstatic.com`への到達性だけが異なるという状況だった。**実際に解決した
+  回避策**: `flutter run`の使い捨てブラウザを使わず、`flutter build web`
+  （このスキルのBuildセクション参照）でビルドし、出力を配信して、
+  Flutterが起動したものではなくユーザー自身の普段のChromeタブでその
+  URLを開いてもらう。この診断に時間をかける前に、まずより単純な
+  説明を除外すること: デバッグモードのFlutter Webは本番ビルドより
+  初回描画がもともとかなり遅い（最適化されていない大きなDDC/JS
+  ペイロードで、キャッシュもまだ無い）ため、低速なマシンでは「まだ
+  コンパイル中なだけ」が1分以上固まった白い画面に見えることがある —
+  ネットワーク問題を疑う前に、まずブラウザのコンソール（F12→Console）
+  で実際に`net::ERR_*`系のエラーが出ているか確認すること。
