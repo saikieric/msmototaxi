@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/auth_repository.dart';
-import '../../../core/auth/dev_auth_bypass.dart';
 import '../../../core/locale/language_switcher_button.dart';
 import '../../../l10n/generated/app_localizations.dart';
 
@@ -17,23 +15,22 @@ import '../../../l10n/generated/app_localizations.dart';
 /// Supabase構築後は、オンラインにするとこのドライバーのGPS位置情報を
 /// Realtimeへ配信開始し（slides.md「位置情報・地理検索」参照）、
 /// マッチング用Edge Functionからの依頼をsubscribeする。
-class DriverHomeScreen extends ConsumerStatefulWidget {
+class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
 
   @override
-  ConsumerState<DriverHomeScreen> createState() => _DriverHomeScreenState();
+  State<DriverHomeScreen> createState() => _DriverHomeScreenState();
 }
 
-class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
+class _DriverHomeScreenState extends State<DriverHomeScreen> {
   bool _isOnline = false;
 
   Future<void> _signOut() async {
+    // The router watches the auth stream, so clearing the session is
+    // enough to return to /login.
+    // ルーターは認証ストリームを見ているので、セッションを消せば
+    // /login に戻る。
     await AuthRepository.instance.signOut();
-    // Also clear the dev bypass (see dev_auth_bypass.dart), otherwise the
-    // router considers us still "signed in" and never returns to /login.
-    // 開発用バイパス（dev_auth_bypass.dart参照）もクリアする。しないと
-    // ルーターが「ログイン済み」のままとみなし、/login に戻れない。
-    ref.read(devAuthBypassProvider.notifier).state = false;
   }
 
   void _showWazeStub() {

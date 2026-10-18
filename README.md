@@ -73,18 +73,10 @@ background and architecture.
 
 ## 実行 / Running
 
-### ログインについて（開発用バイパス） / About login (dev bypass)
+### ログインについて（匿名セッション） / About login (anonymous session)
 
-電話番号OTPログインは実装済み（[core/auth/auth_repository.dart](lib/core/auth/auth_repository.dart)）だが、Supabase
-Dashboard側のSMSプロバイダ設定がまだ済んでいないため、現在ログイン画面の
-「ログイン」ボタンは実認証をせず [core/auth/dev_auth_bypass.dart](lib/core/auth/dev_auth_bypass.dart) のフラグを
-立てるだけになっている。SMS認証を設定したら、この画面を実際の電話番号/OTP
-フローに戻すこと。
-Phone-OTP login is implemented ([core/auth/auth_repository.dart](lib/core/auth/auth_repository.dart)), but since the
-SMS provider isn't configured in the Supabase Dashboard yet, the login
-screen's button currently just flips a dev flag
-([core/auth/dev_auth_bypass.dart](lib/core/auth/dev_auth_bypass.dart)) instead of doing real auth. Once SMS auth is
-set up, switch the screen back to the real phone/OTP flow.
+電話番号OTPのメソッドは [core/auth/auth_repository.dart](lib/core/auth/auth_repository.dart) に残してあるが、SMSプロバイダは未設定のため、ログインボタンは `signInAnonymously` を呼ぶ。実セッション（`auth.uid()`）ができ、flavor に応じた `role` がユーザーメタデータに入るので、既存の `handle_new_user` トリガーが `profiles` を作る。Supabase Dashboard の Authentication → Providers → Anonymous を有効にすること。`.env` が未設定（プレースホルダー）のときはボタンは無効で、未接続と表示する。
+Phone-OTP methods remain in [core/auth/auth_repository.dart](lib/core/auth/auth_repository.dart). The SMS provider is not configured yet, so the login button calls `signInAnonymously`. That creates a real session (`auth.uid()`) and stores the flavor's `role` in user metadata, which the existing `handle_new_user` trigger uses to insert `profiles`. Enable Anonymous under Authentication → Providers in the Supabase Dashboard. While `.env` is still the placeholder, the button stays disabled and the screen says the backend is not connected.
 
 flavorごとにエントリポイントが分かれている（`lib/main_passenger.dart` /
 `lib/main_driver.dart`）。`lib/main.dart` は開発時の簡便のため乗客用flavorの
@@ -160,11 +152,11 @@ flutter test
       location / draggable) and dropoff point (tap). Actually submitting the
       ride request is still stubbed (see below).
 - [ ] 電話番号OTP認証の本設定（Supabase DashboardでのSMSプロバイダ設定）。
-      現在はログインボタンで未認証のまま進む開発用バイパス状態
-      （上記「ログインについて」参照）。
+      ログインは匿名サインインで実セッションを作る（上記「ログインについて」
+      参照）。Dashboardで Anonymous を有効にする必要がある。
       Real phone-OTP auth setup (SMS provider in Supabase Dashboard). Login
-      currently uses a dev bypass that skips real auth (see "About login"
-      above).
+      uses anonymous sign-in to create a real session (see "About login"
+      above). Anonymous must be enabled in the Dashboard.
 - [ ] 配車依頼の実データ書き込み・PostGISによるマッチングロジック
       （Edge Functions）。実認証が前提のため上記と連動。
       Actually writing ride requests & PostGIS-based matching logic (Edge

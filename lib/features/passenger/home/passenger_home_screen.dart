@@ -2,12 +2,10 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/auth/auth_repository.dart';
-import '../../../core/auth/dev_auth_bypass.dart';
 import '../../../core/locale/language_switcher_button.dart';
 import '../../../core/theme/motogo_theme.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -183,27 +181,24 @@ Future<BitmapDescriptor> _createPinBitmap(Color color) async {
 /// tapping the map sets the dropoff point. The request button is enabled
 /// once both are set.
 ///
-/// Actually creating the ride (writing to Supabase `rides`) is still a stub
-/// — it needs a real signed-in user (RLS requires auth.uid() = passenger_id)
-/// and the matching Edge Function, neither of which exist yet. See
-/// dev_auth_bypass.dart for why login is currently skippable.
+/// Actually creating the ride (writing to Supabase `rides`) is still a stub.
+/// Login now yields a real session (`auth.uid()`), which RLS on `rides`
+/// requires, but the matching Edge Function is not implemented yet.
 ///
 /// フロー: 乗車地点はデフォルトで現在地（ドラッグ可能）。地図をタップすると
 /// 降車地点を設定。両方設定されると依頼ボタンが有効になる。
 ///
 /// 実際の配車依頼作成（Supabaseの`rides`への書き込み）はまだスタブ。
-/// RLSが auth.uid() = passenger_id を要求するため実際のログインユーザーが
-/// 必要で、マッチング用Edge Functionもまだ無い。ログインを省略できる理由は
-/// dev_auth_bypass.dart 参照。
-class PassengerHomeScreen extends ConsumerStatefulWidget {
+/// ログインは実セッション（`auth.uid()`）を返すようになり、`rides` の RLS が
+/// 要求するユーザーは揃うが、マッチング用 Edge Function はまだ無い。
+class PassengerHomeScreen extends StatefulWidget {
   const PassengerHomeScreen({super.key});
 
   @override
-  ConsumerState<PassengerHomeScreen> createState() =>
-      _PassengerHomeScreenState();
+  State<PassengerHomeScreen> createState() => _PassengerHomeScreenState();
 }
 
-class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
+class _PassengerHomeScreenState extends State<PassengerHomeScreen> {
   GoogleMapController? _mapController;
   // The device's actual GPS fix, used as the center of the pickup-radius
   // circle and the reference point pickup adjustments are clamped against.
@@ -405,15 +400,16 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
 
   Future<void> _signOut() async {
     await AuthRepository.instance.signOut();
-    ref.read(devAuthBypassProvider.notifier).state = false;
   }
 
   void _requestRide() {
     final l10n = AppLocalizations.of(context)!;
-    // TODO: Insert into Supabase `rides` once real auth + the matching Edge
-    // Function exist (see class doc comment above).
-    // TODO: 実認証とマッチング用Edge Functionが揃ったら、Supabaseの
-    // `rides` へ実際に書き込む（クラスのdocコメント参照）。
+    // TODO: Insert into Supabase `rides` once the matching Edge Function
+    // exists. The session is real now (`auth.uid()`), which is what the
+    // RLS policy needs — see the class doc comment above.
+    // TODO: マッチング用 Edge Function が出来たら Supabase の `rides` へ
+    // 書き込む。セッションは実在し（`auth.uid()`）、RLS が要求する
+    // ユーザーは揃っている — クラスの doc コメント参照。
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.passengerRequestRideStubMessage)),
     );

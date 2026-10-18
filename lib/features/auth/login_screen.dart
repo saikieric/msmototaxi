@@ -1,30 +1,68 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../core/auth/dev_auth_bypass.dart';
+import '../../core/auth/auth_repository.dart';
 import '../../core/locale/language_switcher_button.dart';
+import '../../core/supabase/supabase_config.dart';
 import '../../flavors.dart';
 import '../../l10n/generated/app_localizations.dart';
 
 /// Sign-in screen, shared by both flavors.
 /// 両flavor共通のログイン画面。
 ///
-/// Real phone-OTP sign-in (see AuthRepository) is deferred for now — the
-/// button below just flips the dev-auth-bypass flag so the map/ride-request
-/// screens can be built and tested first. Swap this back to the real
-/// phone/OTP flow once SMS auth is configured in the Supabase Dashboard.
-///
-/// 実際の電話番号OTPログイン（AuthRepository参照）は後回し。下のボタンは
-/// 開発用バイパスフラグを立てるだけで、先に地図・配車依頼画面を作成・確認
-/// できるようにしている。Supabase DashboardでSMS認証を設定したら、
-/// 実際の電話番号/OTPフローに戻すこと。
-class LoginScreen extends ConsumerWidget {
+/// The button calls [AuthRepository.signInAnonymously] so the session —
+/// and therefore `auth.uid()` — is real. Phone OTP stays on
+/// [AuthRepository] for when the SMS provider is configured; this screen
+/// does not collect a phone number yet.
+/// ボタンは [AuthRepository.signInAnonymously] を呼び、セッション
+/// （したがって `auth.uid()`）が本物になる。電話番号OTPは SMS プロバイダ
+/// 設定後のために [AuthRepository] に残してある。この画面はまだ電話番号を
+/// 入力させない。
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool _submitting = false;
+  String? _error;
+
+  Future<void> _signIn() async {
+    if (!SupabaseConfig.isConfigured || _submitting) return;
+
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      await AuthRepository.instance.signInAnonymously(
+        role: AppConfig.instance.flavor.name,
+      );
+    } on AuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.message);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final flavor = AppConfig.instance.flavor;
     final l10n = AppLocalizations.of(context)!;
+    final configured = SupabaseConfig.isConfigured;
+    final scheme = Theme.of(context).colorScheme;
+    final bannerColor = configured
+        ? scheme.secondaryContainer
+        : scheme.errorContainer;
+    final bannerOnColor = configured
+        ? scheme.onSecondaryContainer
+        : scheme.onErrorContainer;
 
     return Scaffold(
       appBar: AppBar(
@@ -46,7 +84,7 @@ class LoginScreen extends ConsumerWidget {
                         ? Icons.two_wheeler
                         : Icons.motorcycle,
                     size: 64,
-                    color: Theme.of(context).colorScheme.primary,
+                    color: scheme.primary,
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -68,23 +106,33 @@ class LoginScreen extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.secondaryContainer,
+                      color: bannerColor,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      l10n.loginDevBypassBanner,
-                      style: TextStyle(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSecondaryContainer,
-                      ),
+                      configured
+                          ? l10n.loginAnonymousBanner
+                          : l10n.loginNotConfigured,
+                      style: TextStyle(color: bannerOnColor),
                     ),
                   ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      l10n.loginError(_error!),
+                      style: TextStyle(color: scheme.error),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   FilledButton(
-                    onPressed: () =>
-                        ref.read(devAuthBypassProvider.notifier).state = true,
-                    child: Text(l10n.loginButton),
+                    onPressed: configured && !_submitting ? _signIn : null,
+                    child: _submitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(l10n.loginButton),
                   ),
                 ],
               ),

@@ -11,7 +11,9 @@
 
   "loginPassengerSubtitle": "乗客用アプリ",
   "loginDriverSubtitle": "ドライバー用アプリ",
-  "loginDevBypassBanner": "開発用: 電話番号認証は未設定のため、ボタンを押すと未認証のまま画面へ進みます。",
+  "loginAnonymousBanner": "テスト用の匿名セッションです。SMSログインのコードは残してあり、プロバイダ設定後に有効にします。",
+  "loginNotConfigured": "バックエンド未接続です。.env に Supabase の設定を入れてください。",
+  "loginError": "ログインに失敗しました: {error}",
   "loginButton": "ログイン",
 
   "passengerGettingCurrentLocation": "現在地を取得しています…",
@@ -28,7 +30,7 @@
   "passengerDropoffNotSet": "降車地点: 地図をタップして選択",
   "passengerDropoffSet": "降車地点: 設定済み",
   "passengerRequestRideButton": "配車を依頼する",
-  "passengerRequestRideStubMessage": "配車依頼機能は準備中です（認証・マッチング実装後に対応）",
+  "passengerRequestRideStubMessage": "配車依頼機能は準備中です（マッチング実装後に対応）",
 
   "driverOnlineStatus": "オンライン（依頼を受付中）",
   "driverOfflineStatus": "オフライン",

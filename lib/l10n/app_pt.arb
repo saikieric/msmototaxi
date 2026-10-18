@@ -32,13 +32,27 @@
   "@loginDriverSubtitle": {
     "description": "Subtitle under the app name on the login screen, driver flavor."
   },
-  "loginDevBypassBanner": "Modo de desenvolvimento: a autenticação por telefone ainda não está configurada. Ao tocar no botão, você avança sem autenticação real.",
-  "@loginDevBypassBanner": {
-    "description": "Banner explaining the temporary dev-auth-bypass button on the login screen. See core/auth/dev_auth_bypass.dart."
+  "loginAnonymousBanner": "Sessão anônima de teste. O login por SMS continua no código e será ativado quando o provedor estiver configurado.",
+  "@loginAnonymousBanner": {
+    "description": "Banner on the login screen while the button signs in anonymously. Phone OTP remains in AuthRepository for later."
+  },
+  "loginNotConfigured": "O servidor não está conectado. Preencha as configurações do Supabase no arquivo .env.",
+  "@loginNotConfigured": {
+    "description": "Banner on the login screen when SUPABASE_URL / SUPABASE_ANON_KEY are still the placeholders, so the button stays disabled."
+  },
+  "loginError": "Falha ao entrar: {error}",
+  "@loginError": {
+    "description": "Shown under the login button when anonymous sign-in fails.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "description": "AuthException message or other error text returned by Supabase."
+      }
+    }
   },
   "loginButton": "Entrar",
   "@loginButton": {
-    "description": "Login screen's submit button — currently just flips the dev-auth-bypass flag, see dev_auth_bypass.dart."
+    "description": "Login screen's submit button. Calls anonymous sign-in so a real Supabase session exists."
   },
 
   "passengerGettingCurrentLocation": "Obtendo localização atual…",
@@ -103,9 +117,9 @@
   "@passengerRequestRideButton": {
     "description": "Button that submits the ride request (currently a stub)."
   },
-  "passengerRequestRideStubMessage": "A solicitação de corrida ainda está em desenvolvimento (disponível após a autenticação e o pareamento com motoristas).",
+  "passengerRequestRideStubMessage": "A solicitação de corrida ainda está em desenvolvimento (disponível após o pareamento com motoristas).",
   "@passengerRequestRideStubMessage": {
-    "description": "Snackbar shown when tapping the (currently stubbed) request-ride button. See PassengerHomeScreen._requestRide."
+    "description": "Snackbar shown when tapping the (currently stubbed) request-ride button. Auth exists; matching does not. See PassengerHomeScreen._requestRide."
   },
 
   "driverOnlineStatus": "Online (recebendo solicitações)",

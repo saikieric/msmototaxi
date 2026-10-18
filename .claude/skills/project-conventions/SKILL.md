@@ -46,7 +46,7 @@ lib/
   main_passenger.dart          <- real passenger flavor entrypoint
   main_driver.dart             <- real driver flavor entrypoint
   core/                        <- cross-cutting, not screen-specific
-    auth/                       <- AuthRepository, auth state providers, dev bypass flag
+    auth/                       <- AuthRepository, auth state providers (anonymous sign-in; phone OTP kept)
     router/                     <- go_router config, auth-aware redirects
     supabase/                   <- SupabaseConfig (reads .env, initializes the client)
     locale/                     <- LocaleController (persisted pt/ja choice), LanguageSwitcherButton

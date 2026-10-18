@@ -117,29 +117,29 @@ Riverpodの認証ストリームをgo_routerの `Listenable` ベースの
 `refreshListenable` に橋渡ししているため、ログイン/ログアウト時に
 手動でナビゲーションを呼ばなくてもリダイレクト判定が再評価される。
 
-**Dev auth bypass — temporary, load-bearing.** Phone-OTP login is
-implemented (`core/auth/auth_repository.dart`), but Supabase's SMS
-provider isn't configured yet, so `core/auth/dev_auth_bypass.dart`
-provides a `devAuthBypassProvider` that `app_router.dart`'s redirect logic
-treats as equivalent to being signed in. The login screen's button
-currently just flips this flag instead of doing real OTP. This means
-screens past login (e.g. `PassengerHomeScreen`) run **without** a real
-`auth.uid()` — anything that needs to write to a table with an
-`auth.uid() = ...` RLS policy (see `rides`) will fail until real auth
-replaces this bypass. Don't build features that assume a real signed-in
-user without accounting for this.
+**Anonymous session until SMS OTP is turned on.** Phone-OTP methods stay
+in `core/auth/auth_repository.dart` (`signInWithPhoneOtp` /
+`verifyPhoneOtp`) but the login button calls `signInAnonymously` with
+`data: {role: <flavor>}` so a real session exists and `auth.uid()` is
+set. The existing `handle_new_user` trigger reads that role from
+`raw_user_meta_data` and inserts `profiles` (and `driver_profiles` for
+`driver`). Anonymous sign-ins must be enabled in the Supabase dashboard;
+there is no dev bypass. If `.env` still has the placeholder URL/key,
+the button stays disabled and the screen says the backend is not
+connected. Ride creation is still a stub — matching is not implemented,
+even though RLS can now see a user.
 
-**開発用ログインバイパス — 一時的だが現状の動作を支えている。**
-電話番号OTPログイン自体は実装済み（`core/auth/auth_repository.dart`）だが、
-SupabaseのSMSプロバイダがまだ未設定のため、`core/auth/dev_auth_bypass.dart`
-が `devAuthBypassProvider` を提供し、`app_router.dart` のリダイレクト
-ロジックはこれを「ログイン済み」と同等に扱う。ログイン画面のボタンは
-現状、実際のOTP認証をせずこのフラグを立てるだけ。つまりログイン後の画面
-（`PassengerHomeScreen`等）は**実際の`auth.uid()`を持たない状態**で
-動いている — `auth.uid() = ...` というRLSポリシー（`rides`参照）を持つ
-テーブルへの書き込みは、このバイパスが実認証に置き換わるまで失敗する。
-これを踏まえずに「実際にログイン済みユーザーがいる」前提の機能を作らない
-こと。
+**SMS OTPを有効にするまでの匿名セッション。** 電話番号OTPのメソッド
+（`signInWithPhoneOtp` / `verifyPhoneOtp`）は
+`core/auth/auth_repository.dart` に残してあるが、ログインボタンは
+`data: {role: <flavor>}` 付きで `signInAnonymously` を呼ぶ。実セッションが
+でき、`auth.uid()` が設定される。既存の `handle_new_user` トリガーが
+`raw_user_meta_data` の role を読んで `profiles`（`driver` なら
+`driver_profiles` も）を挿入する。匿名サインインは Supabase
+ダッシュボードで有効にする必要がある。開発用バイパスは無い。`.env` が
+プレースホルダーの URL/キーのままだと、ボタンは無効になり、画面は
+バックエンド未接続と表示する。配車依頼の作成はまだスタブ — ユーザーは
+RLSから見えるが、マッチングは未実装。
 
 **Supabase config is `.env`-driven with a graceful "unconfigured" state.**
 `core/supabase/supabase_config.dart` reads `SUPABASE_URL`/`SUPABASE_ANON_KEY`

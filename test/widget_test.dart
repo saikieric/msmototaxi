@@ -65,5 +65,11 @@ void main() {
 
     expect(find.text('MotoGo'), findsOneWidget);
     expect(find.text('ログイン'), findsOneWidget);
+    // dotenv.testLoad left the env empty, so the button must not navigate.
+    // dotenv.testLoad で env は空のまま。ボタンは画面遷移させない。
+    expect(
+      find.text('バックエンド未接続です。.env に Supabase の設定を入れてください。'),
+      findsOneWidget,
+    );
   });
 }

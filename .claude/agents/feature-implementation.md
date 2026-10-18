@@ -50,10 +50,11 @@ plan won't restate house style.
   file, named `<thing>_screen.dart`. Shared logic goes in `core/`, not
   `features/`.
 - Match existing patterns for state handling you'll find in
-  `passenger_home_screen.dart` (loading/error/null states, the
-  dev-auth-bypass situation noted in `CLAUDE.md` — don't write code that
-  assumes a real signed-in user without accounting for it being currently
-  bypassed).
+  `passenger_home_screen.dart` (loading/error/null states). Login creates
+  a real anonymous session when Supabase is configured (`CLAUDE.md`);
+  screens past `/login` can read `auth.uid()`. If `.env` is still the
+  placeholder, there is no session — don't assume one on the login screen
+  itself.
 
 - **すべてのdocコメント・ファイル冒頭コメント・自明でないインライン
   コメントは、英語と日本語を同時に併記する** — `bilingual-comments`
@@ -72,9 +73,10 @@ plan won't restate house style.
   1ファイル1画面、ファイル名は`<何か>_screen.dart`。共通ロジックは
   `features/`ではなく`core/`に置く。
 - `passenger_home_screen.dart`にある既存パターン（読み込み中/エラー/
-  未設定状態の扱い、`CLAUDE.md`に書かれた開発用認証バイパスの状況 —
-  実際にログイン済みユーザーがいる前提のコードを、それが現状バイパス
-  されていることを踏まえずに書かない）に合わせる。
+  未設定状態の扱い）に合わせる。Supabaseが設定されていればログインは
+  匿名の実セッションを作る（`CLAUDE.md`）。`/login` より先の画面は
+  `auth.uid()` を読んでよい。`.env` がプレースホルダーのままだと
+  セッションは無い — ログイン画面自体ではセッションがある前提にしない。
 
 ## After implementing / 実装した後
 

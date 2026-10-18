@@ -202,10 +202,10 @@ keyを使ってREST API経由で簡易確認するとよい（上記curlコマ�
   list` for `ACTIVE_HEALTHY` and the health-check curl for HTTP 200
   before assuming it's still broken. If a project has gone unused for
   roughly a week, check its status before spending time debugging
-  something else — the passenger/driver apps' current dev-auth-bypass
-  flow (see `CLAUDE.md`) never actually calls Supabase, so a paused
-  project won't show up as a blank screen or any obvious in-app error;
-  it just silently means any *real* Supabase call will fail.
+  something else — login now calls Supabase anonymous sign-in (see
+  `CLAUDE.md`), so a paused project shows up as a sign-in error on the
+  login button rather than a silent skip. Other screens still don't
+  call Supabase until a feature actually writes a row.
 
   **無料プランのプロジェクトは、API呼び出しが約1週間無いと自動的に
   一時停止する** — この環境で確認済み: このプロジェクトへのリクエストが
@@ -224,8 +224,8 @@ keyを使ってREST API経由で簡易確認するとよい（上記curlコマ�
   projects list`で`ACTIVE_HEALTHY`になり、ヘルスチェックcurlがHTTP 200を
   返すまでポーリングしてから、まだ壊れていると判断すること。約1週間
   操作されていないプロジェクトがあれば、他の問題を疑って時間をかける前に
-  まずステータスを確認すること — 乗客/ドライバーアプリの現状の開発用
-  認証バイパスフロー（`CLAUDE.md`参照）は実際にはSupabaseを一切呼ばない
-  ため、プロジェクトが一時停止していてもアプリ内で白い画面や明白な
-  エラーとしては現れない — 単に、*実際の*Supabase呼び出しが静かに
-  失敗するだけになる。
+  まずステータスを確認すること — ログインは Supabase の匿名サインインを
+  呼ぶ（`CLAUDE.md`参照）ので、プロジェクトが一時停止していると
+  ログインボタン上のサインインエラーとして現れる。無言でスキップは
+  しない。他の画面は、行を書き込む機能が実際に呼ぶまで Supabase を
+  呼ばない。

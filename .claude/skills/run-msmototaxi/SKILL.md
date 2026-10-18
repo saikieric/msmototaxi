@@ -233,9 +233,9 @@ flutter run                                                   # デフォルト�
 - **Pixel-coordinate clicks shift with locale** — the app is localized
   (pt default, ja supported; see `bilingual-comments` skill's "neither"
   section). Translated text is a different length, which can shift where
-  a button/banner lands vertically (the login screen's dev-bypass button
-  sits at y≈607 in ja but y≈616 in pt on this machine, due to the dev
-  banner wrapping to a different number of lines). This machine's OS
+  a button/banner lands vertically (the login screen's sign-in button
+  was at about (240, 607) in pt on the 480×900 viewport after the
+  anonymous-session banner; ja still shifts it). This machine's OS
   locale is Japanese, so a fresh headless launch defaults to ja unless
   you click the language-switcher (globe icon, top-right, ~(460, 28)) to
   change it. Always re-screenshot after any locale change before reusing
@@ -245,8 +245,9 @@ flutter run                                                   # デフォルト�
   （デフォルトpt、ja対応 — `bilingual-comments` スキルの
   「どちらでもないもの」セクション参照）。翻訳後のテキストは長さが
   異なるため、ボタン/バナーの縦位置がずれることがある（このマシンでは
-  ログイン画面の開発用バイパスボタンが、開発用バナーの折り返し行数の
-  違いによりjaでy≈607、ptでy≈616になる）。このマシンのOS言語は日本語
+  ログイン画面のログインボタンが、バナーの折り返し行数で上下する。
+  匿名セッションのバナー導入後、pt・480×900ではおおよそ (240, 607)。
+  jaではまだずれる）。このマシンのOS言語は日本語
   なので、ヘッドレス起動直後はjaがデフォルトになる（言語切り替え —
   右上の🌐アイコン、おおよそ(460, 28) — をクリックしない限り）。言語を
   変更した後は、保存済みの座標を再利用する前に必ずスクリーンショットを
