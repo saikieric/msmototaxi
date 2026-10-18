@@ -36,5 +36,7 @@
   "driverWaitingForRequests": "依頼を待っています…",
   "driverGoOnlineToReceiveRequests": "オンラインにすると依頼を受け取れます",
   "driverNavigateWithWazeTooltip": "Wazeでナビ",
-  "driverNavigateWithWazeStubMessage": "配車が確定するとWazeナビが使えるようになります（マッチング機能は準備中）"
+  "driverNavigateWithWazeStubMessage": "配車が確定するとWazeナビが使えるようになります（マッチング機能は準備中）",
+  "driverLocationServiceDisabledMessage": "オンラインにできません: 位置情報サービスが無効です。",
+  "driverLocationPermissionDeniedMessage": "オンラインにできません: 位置情報の権限が許可されていません。"
 }
