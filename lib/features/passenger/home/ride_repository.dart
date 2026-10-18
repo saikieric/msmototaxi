@@ -6,14 +6,20 @@ import 'ride.dart';
 /// Writes and watches the signed-in passenger's ride.
 /// ログイン中の乗客の配車を書き込み、監視する。
 ///
-/// Existing RLS is enough: `passengers can create rides` checks
-/// `auth.uid() = passenger_id`, `passengers can view their own rides`
-/// covers the select (including Realtime), and
-/// `passengers can update their own rides` covers cancel. No new policy.
-/// 既存の RLS で足りる。`passengers can create rides` が
-/// `auth.uid() = passenger_id` を検査し、`passengers can view their own
-/// rides` が select（Realtime を含む）を、`passengers can update their
-/// own rides` がキャンセルをカバーする。新しいポリシーは無い。
+/// `passengers can create rides` checks `auth.uid() = passenger_id`,
+/// `passengers can view their own rides` covers the select (including
+/// Realtime), and cancel is covered by
+/// `passengers can cancel their own requested rides` (see
+/// `supabase/migrations/*_restrict_passenger_ride_update.sql`) plus this
+/// repo's own `.eq('status', 'requested')` filter in [cancel] — the policy
+/// enforces it server-side even if a caller skips this repo.
+/// `passengers can create rides` が `auth.uid() = passenger_id` を検査し、
+/// `passengers can view their own rides` が select（Realtime を含む）を
+/// カバーする。キャンセルは `passengers can cancel their own requested
+/// rides`（`supabase/migrations/*_restrict_passenger_ride_update.sql`
+/// 参照）と、[cancel] 内の `.eq('status', 'requested')` フィルターの
+/// 二重でカバーする — このリポジトリを経由しない呼び出しでも、ポリシー側で
+/// サーバー側に強制される。
 class RideRepository {
   RideRepository(this._client);
 
@@ -61,8 +67,15 @@ class RideRepository {
     return Ride.fromRow(row);
   }
 
-  /// Sets `status` to `cancelled`. The UI only calls this for `requested`.
-  /// `status` を `cancelled` にする。UI は `requested` のときだけ呼ぶ。
+  /// Sets `status` to `cancelled`. The UI only calls this for `requested`,
+  /// but the `.eq('status', 'requested')` filter re-asserts that server-side
+  /// too, so a stale client (or a race with a driver match) can't cancel a
+  /// ride that has already moved past `requested`.
+  /// `status` を `cancelled` にする。UI は `requested` のときだけ呼ぶが、
+  /// `.eq('status', 'requested')` フィルターでサーバー側でもそれを
+  /// 再確認する。これにより、古いクライアントの状態や、ドライバーの
+  /// マッチングとの競合があっても、既に `requested` を過ぎた配車を
+  /// キャンセルできないようにする。
   Future<Ride> cancel(String rideId, {DateTime? cancelledAt}) async {
     final row = await _client
         .from('rides')
@@ -70,6 +83,7 @@ class RideRepository {
           rideCancelPatch(cancelledAt: cancelledAt ?? DateTime.now().toUtc()),
         )
         .eq('id', rideId)
+        .eq('status', 'requested')
         .select('id, status')
         .single();
     return Ride.fromRow(row);

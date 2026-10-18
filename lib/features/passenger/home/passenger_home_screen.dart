@@ -328,10 +328,15 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
       setState(() => _ride = ride);
       _watchRide(ride.id);
     } catch (e) {
-      if (!mounted) return;
-      _showRideError(
-        AppLocalizations.of(context)!.passengerRequestRideError(_errorText(e)),
-      );
+      // This runs unprompted in initState, not from a user action, so a
+      // transient failure (offline, unconfigured backend) degrades to "no
+      // active ride" instead of popping a snackbar on every screen open —
+      // same convention as the location-permission handling above.
+      // これはユーザー操作ではなくinitStateから無条件に走るため、一時的な
+      // 失敗（オフライン、未設定のバックエンド）は画面を開くたびに
+      // スナックバーを出すのではなく「進行中の依頼なし」として縮退する —
+      // 上の位置情報権限の扱いと同じ方針。
+      debugPrint('PassengerHomeScreen._loadActiveRide failed: $e');
     } finally {
       if (mounted) setState(() => _loadingActiveRide = false);
     }
