@@ -11,8 +11,8 @@
 
   "loginPassengerSubtitle": "乗客用アプリ",
   "loginDriverSubtitle": "ドライバー用アプリ",
-  "loginDevBypassBanner": "開発用: 電話番号認証は未設定のため、ボタンを押すと未認証のまま画面へ進みます。",
   "loginButton": "ログイン",
+  "loginFailedMessage": "ログインに失敗しました: {error}",
 
   "passengerGettingCurrentLocation": "現在地を取得しています…",
   "passengerLocationServiceDisabled": "位置情報サービスが無効です",

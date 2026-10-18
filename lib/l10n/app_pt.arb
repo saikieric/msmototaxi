@@ -32,13 +32,19 @@
   "@loginDriverSubtitle": {
     "description": "Subtitle under the app name on the login screen, driver flavor."
   },
-  "loginDevBypassBanner": "Modo de desenvolvimento: a autenticação por telefone ainda não está configurada. Ao tocar no botão, você avança sem autenticação real.",
-  "@loginDevBypassBanner": {
-    "description": "Banner explaining the temporary dev-auth-bypass button on the login screen. See core/auth/dev_auth_bypass.dart."
-  },
   "loginButton": "Entrar",
   "@loginButton": {
-    "description": "Login screen's submit button — currently just flips the dev-auth-bypass flag, see dev_auth_bypass.dart."
+    "description": "Login screen's submit button — creates an anonymous Supabase session, see AuthRepository.signInAnonymously."
+  },
+  "loginFailedMessage": "Falha ao entrar: {error}",
+  "@loginFailedMessage": {
+    "description": "Snackbar shown when signInAnonymously fails (e.g. no network, backend unreachable).",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "description": "The underlying exception's string representation."
+      }
+    }
   },
 
   "passengerGettingCurrentLocation": "Obtendo localização atual…",

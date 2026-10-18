@@ -20,6 +20,22 @@ class AuthRepository {
 
   User? get currentUser => _client.auth.currentUser;
 
+  /// Creates a real (anonymous) Supabase session tagged with [role]
+  /// ('passenger' or 'driver', from the running app flavor). The
+  /// `handle_new_user` DB trigger reads this from `raw_user_meta_data` to
+  /// create the matching `profiles` (and `driver_profiles`) row. This is
+  /// the login screen's path to a signed-in session until Supabase's SMS
+  /// provider is configured and [signInWithPhoneOtp] takes over.
+  /// [role]（起動中のflavorに応じた 'passenger' または 'driver'）を付与した
+  /// 実際の（匿名）Supabaseセッションを作成する。`handle_new_user`
+  /// DBトリガーがこれを`raw_user_meta_data`から読み取り、対応する
+  /// `profiles`（および`driver_profiles`）行を作成する。SupabaseのSMS
+  /// プロバイダが設定され[signInWithPhoneOtp]に置き換わるまでは、
+  /// ログイン画面がログイン済みセッションを得るための経路はこちら。
+  Future<AuthResponse> signInAnonymously({required String role}) {
+    return _client.auth.signInAnonymously(data: {'role': role});
+  }
+
   /// Sends a one-time password to [phone] (E.164 format, e.g. +5513999999999).
   /// [phone]（E.164形式、例: +5513999999999）にワンタイムパスワードを送信する。
   Future<void> signInWithPhoneOtp(String phone) {

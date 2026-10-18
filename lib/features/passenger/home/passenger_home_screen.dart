@@ -7,7 +7,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/auth/auth_repository.dart';
-import '../../../core/auth/dev_auth_bypass.dart';
 import '../../../core/locale/language_switcher_button.dart';
 import '../../../core/theme/motogo_theme.dart';
 import '../../../l10n/generated/app_localizations.dart';
@@ -184,17 +183,19 @@ Future<BitmapDescriptor> _createPinBitmap(Color color) async {
 /// once both are set.
 ///
 /// Actually creating the ride (writing to Supabase `rides`) is still a stub
-/// — it needs a real signed-in user (RLS requires auth.uid() = passenger_id)
-/// and the matching Edge Function, neither of which exist yet. See
-/// dev_auth_bypass.dart for why login is currently skippable.
+/// — it needs the matching Edge Function, which doesn't exist yet. The
+/// RLS requirement (auth.uid() = passenger_id) is already satisfied, since
+/// login now creates a real anonymous Supabase session (see
+/// AuthRepository.signInAnonymously).
 ///
 /// フロー: 乗車地点はデフォルトで現在地（ドラッグ可能）。地図をタップすると
 /// 降車地点を設定。両方設定されると依頼ボタンが有効になる。
 ///
 /// 実際の配車依頼作成（Supabaseの`rides`への書き込み）はまだスタブ。
-/// RLSが auth.uid() = passenger_id を要求するため実際のログインユーザーが
-/// 必要で、マッチング用Edge Functionもまだ無い。ログインを省略できる理由は
-/// dev_auth_bypass.dart 参照。
+/// マッチング用Edge Functionがまだ無いため。RLSの要件
+/// （auth.uid() = passenger_id）はログインが実際の匿名Supabaseセッションを
+/// 作成するようになった（AuthRepository.signInAnonymously参照）ため、既に
+/// 満たされている。
 class PassengerHomeScreen extends ConsumerStatefulWidget {
   const PassengerHomeScreen({super.key});
 
@@ -403,10 +404,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
     );
   }
 
-  Future<void> _signOut() async {
-    await AuthRepository.instance.signOut();
-    ref.read(devAuthBypassProvider.notifier).state = false;
-  }
+  Future<void> _signOut() => AuthRepository.instance.signOut();
 
   void _requestRide() {
     final l10n = AppLocalizations.of(context)!;
