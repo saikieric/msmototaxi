@@ -29,6 +29,15 @@ background and architecture.
    If no Supabase project exists yet, the app still runs with placeholder
    values in `.env`.
 
+   ログイン画面は匿名サインイン（`signInAnonymously`）を使うため、Supabase
+   Dashboardで有効化しておく必要がある: Authentication > Sign In / Up >
+   Anonymous を開き、"Allow anonymous sign-ins" を有効にする。これを
+   有効にしないと、ログインボタンを押すたびに失敗する。
+   The login screen uses anonymous sign-in (`signInAnonymously`), which
+   must be enabled in the Supabase Dashboard: go to Authentication > Sign
+   In / Up > Anonymous and turn on "Allow anonymous sign-ins". Without
+   this, every tap of the login button fails.
+
 3. Google Maps APIキーを設定 / Configure the Google Maps API key:
 
    乗客用ホーム画面（地図＋配車依頼UI）はGoogle Maps SDKを使う。プラット
@@ -73,18 +82,22 @@ background and architecture.
 
 ## 実行 / Running
 
-### ログインについて（開発用バイパス） / About login (dev bypass)
+### ログインについて（匿名認証） / About login (anonymous auth)
 
 電話番号OTPログインは実装済み（[core/auth/auth_repository.dart](lib/core/auth/auth_repository.dart)）だが、Supabase
 Dashboard側のSMSプロバイダ設定がまだ済んでいないため、現在ログイン画面の
-「ログイン」ボタンは実認証をせず [core/auth/dev_auth_bypass.dart](lib/core/auth/dev_auth_bypass.dart) のフラグを
-立てるだけになっている。SMS認証を設定したら、この画面を実際の電話番号/OTP
-フローに戻すこと。
+「ログイン」ボタンは実際のOTP認証の代わりに、flavorをroleとして付与した
+匿名Supabaseセッション（`signInAnonymously`）を作成する。これは実際の
+Supabaseセッションであり、`handle_new_user`トリガーが通常のOTPログイン時
+と同様に`profiles`/`driver_profiles`を作成する。SMS認証を設定したら、
+この画面を実際の電話番号/OTPフローに切り替えること。
 Phone-OTP login is implemented ([core/auth/auth_repository.dart](lib/core/auth/auth_repository.dart)), but since the
 SMS provider isn't configured in the Supabase Dashboard yet, the login
-screen's button currently just flips a dev flag
-([core/auth/dev_auth_bypass.dart](lib/core/auth/dev_auth_bypass.dart)) instead of doing real auth. Once SMS auth is
-set up, switch the screen back to the real phone/OTP flow.
+screen's button instead creates an anonymous Supabase session
+(`signInAnonymously`) tagged with the flavor as its role. This is a real
+Supabase session — the `handle_new_user` trigger creates
+`profiles`/`driver_profiles` just as it would for a real OTP login. Once
+SMS auth is set up, switch the screen to the real phone/OTP flow.
 
 flavorごとにエントリポイントが分かれている（`lib/main_passenger.dart` /
 `lib/main_driver.dart`）。`lib/main.dart` は開発時の簡便のため乗客用flavorの
@@ -160,15 +173,16 @@ flutter test
       location / draggable) and dropoff point (tap). Actually submitting the
       ride request is still stubbed (see below).
 - [ ] 電話番号OTP認証の本設定（Supabase DashboardでのSMSプロバイダ設定）。
-      現在はログインボタンで未認証のまま進む開発用バイパス状態
+      現在はログインボタンが代わりに匿名Supabaseセッションを作成する
       （上記「ログインについて」参照）。
       Real phone-OTP auth setup (SMS provider in Supabase Dashboard). Login
-      currently uses a dev bypass that skips real auth (see "About login"
-      above).
+      currently creates an anonymous Supabase session instead (see "About
+      login" above).
 - [ ] 配車依頼の実データ書き込み・PostGISによるマッチングロジック
-      （Edge Functions）。実認証が前提のため上記と連動。
+      （Edge Functions）。認証自体は匿名セッションで既に満たされている。
       Actually writing ride requests & PostGIS-based matching logic (Edge
-      Functions). Depends on real auth above.
+      Functions). Auth itself is already satisfied via the anonymous
+      session.
 - [ ] 決済（Pix経由）
       Payments (via Pix)
 - [ ] iOS flavor設定（Mac環境が必要）

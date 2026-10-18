@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/auth_repository.dart';
-import '../../../core/auth/dev_auth_bypass.dart';
 import '../../../core/locale/language_switcher_button.dart';
 import '../../../l10n/generated/app_localizations.dart';
 
@@ -27,14 +26,7 @@ class DriverHomeScreen extends ConsumerStatefulWidget {
 class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   bool _isOnline = false;
 
-  Future<void> _signOut() async {
-    await AuthRepository.instance.signOut();
-    // Also clear the dev bypass (see dev_auth_bypass.dart), otherwise the
-    // router considers us still "signed in" and never returns to /login.
-    // 開発用バイパス（dev_auth_bypass.dart参照）もクリアする。しないと
-    // ルーターが「ログイン済み」のままとみなし、/login に戻れない。
-    ref.read(devAuthBypassProvider.notifier).state = false;
-  }
+  Future<void> _signOut() => AuthRepository.instance.signOut();
 
   void _showWazeStub() {
     final l10n = AppLocalizations.of(context)!;

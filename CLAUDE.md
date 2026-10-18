@@ -117,29 +117,61 @@ Riverpodの認証ストリームをgo_routerの `Listenable` ベースの
 `refreshListenable` に橋渡ししているため、ログイン/ログアウト時に
 手動でナビゲーションを呼ばなくてもリダイレクト判定が再評価される。
 
-**Dev auth bypass — temporary, load-bearing.** Phone-OTP login is
-implemented (`core/auth/auth_repository.dart`), but Supabase's SMS
-provider isn't configured yet, so `core/auth/dev_auth_bypass.dart`
-provides a `devAuthBypassProvider` that `app_router.dart`'s redirect logic
-treats as equivalent to being signed in. The login screen's button
-currently just flips this flag instead of doing real OTP. This means
-screens past login (e.g. `PassengerHomeScreen`) run **without** a real
-`auth.uid()` — anything that needs to write to a table with an
-`auth.uid() = ...` RLS policy (see `rides`) will fail until real auth
-replaces this bypass. Don't build features that assume a real signed-in
-user without accounting for this.
+**Login is anonymous Supabase auth, tagged with a role.** Phone-OTP login
+is implemented (`core/auth/auth_repository.dart`'s `signInWithPhoneOtp`/
+`verifyPhoneOtp`), but Supabase's SMS provider isn't configured yet, so
+the login screen's button instead calls `signInAnonymously` with
+`data: {'role': 'passenger' | 'driver'}` (role from the app flavor). This
+creates a **real** Supabase session — `handle_new_user` reads that role
+out of `raw_user_meta_data` to create `profiles`/`driver_profiles`, same
+as it would for a real OTP sign-in. `app_router.dart`'s redirect logic
+treats the user as signed in purely based on Supabase auth state (via
+`currentUserProvider`/`authStateProvider` in `core/auth/auth_state.dart`)
+— there is no separate dev-only bypass flag anymore. Screens past login
+(e.g. `PassengerHomeScreen`) run **with** a real `auth.uid()`, so writes
+to tables with an `auth.uid() = ...` RLS policy (see `rides`) work
+already; what's still missing for ride creation is the matching Edge
+Function, not auth.
 
-**開発用ログインバイパス — 一時的だが現状の動作を支えている。**
-電話番号OTPログイン自体は実装済み（`core/auth/auth_repository.dart`）だが、
-SupabaseのSMSプロバイダがまだ未設定のため、`core/auth/dev_auth_bypass.dart`
-が `devAuthBypassProvider` を提供し、`app_router.dart` のリダイレクト
-ロジックはこれを「ログイン済み」と同等に扱う。ログイン画面のボタンは
-現状、実際のOTP認証をせずこのフラグを立てるだけ。つまりログイン後の画面
-（`PassengerHomeScreen`等）は**実際の`auth.uid()`を持たない状態**で
-動いている — `auth.uid() = ...` というRLSポリシー（`rides`参照）を持つ
-テーブルへの書き込みは、このバイパスが実認証に置き換わるまで失敗する。
-これを踏まえずに「実際にログイン済みユーザーがいる」前提の機能を作らない
-こと。
+**ログインはロール付きの匿名Supabase認証。** 電話番号OTPログイン自体は
+実装済み（`core/auth/auth_repository.dart`の`signInWithPhoneOtp`/
+`verifyPhoneOtp`）だが、SupabaseのSMSプロバイダがまだ未設定のため、
+ログイン画面のボタンは代わりに `signInAnonymously` を
+`data: {'role': 'passenger' | 'driver'}`（roleはアプリのflavorから）付きで
+呼ぶ。これは**実際の**Supabaseセッションを作成する —
+`handle_new_user` がこのroleを`raw_user_meta_data`から読み取り、実際の
+OTPログイン時と同様に`profiles`/`driver_profiles`を作成する。
+`app_router.dart` のリダイレクトロジックは、純粋にSupabaseの認証状態
+（`core/auth/auth_state.dart`の`currentUserProvider`/`authStateProvider`
+経由）だけを見てログイン済みかどうかを判定する — 別の開発用バイパス
+フラグはもう存在しない。ログイン後の画面（`PassengerHomeScreen`等）は
+**実際の`auth.uid()`を持つ状態**で動いている。そのため
+`auth.uid() = ...` というRLSポリシー（`rides`参照）を持つテーブルへの
+書き込みは既に動作する。配車依頼の作成に今も欠けているのはマッチング用
+Edge Functionであり、認証ではない。
+
+**Anonymous sign-in is unverified — `authenticated` no longer implies a
+verified human, and `role` is self-reported.** Anyone can call
+`signInAnonymously` from either flavor and claim `role: 'driver'`; there
+is no verification behind it. `supabase/migrations/20261019120000_restrict_unassigned_rides_to_approved_drivers.sql`
+narrows the `rides` RLS policy so unassigned rides (which expose a
+passenger's pickup/dropoff location) are only visible to a
+`driver_profiles.is_approved = true` row, not to every self-reported
+"driver". Any future RLS policy or client-side trust decision that
+branches on `role` must assume the anonymous path can forge that role
+until real phone-OTP verification replaces it — see the TODO on
+`AuthRepository.signInAnonymously`.
+
+**匿名サインインは未検証であり、`authenticated` はもはや「検証済みの
+人間」を意味しない。`role` は自己申告である。** どちらのflavorからでも
+誰でも `signInAnonymously` を呼んで `role: 'driver'` を名乗れる —
+その裏付けは何も無い。`supabase/migrations/20261019120000_restrict_unassigned_rides_to_approved_drivers.sql`
+は `rides` のRLSポリシーを絞り込み、未割当ride（乗客の乗車/降車位置が
+露出する）を `driver_profiles.is_approved = true` の行にのみ閲覧可能に
+した（自己申告だけの「ドライバー」には見せない）。`role` で分岐する
+今後のRLSポリシーやクライアント側の信頼判断は、実際の電話番号OTP認証に
+置き換わるまで、匿名パスがそのroleを偽装できることを前提にすること —
+`AuthRepository.signInAnonymously` のTODOも参照。
 
 **Supabase config is `.env`-driven with a graceful "unconfigured" state.**
 `core/supabase/supabase_config.dart` reads `SUPABASE_URL`/`SUPABASE_ANON_KEY`
