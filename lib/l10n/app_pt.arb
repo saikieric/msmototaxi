@@ -46,6 +46,10 @@
       }
     }
   },
+  "loginNotConnectedMessage": "Não conectado ao servidor. Configure o backend para continuar.",
+  "@loginNotConnectedMessage": {
+    "description": "Snackbar shown on the login button when SupabaseConfig.isConfigured is false (.env still has placeholder values), instead of attempting signInAnonymously."
+  },
 
   "passengerGettingCurrentLocation": "Obtendo localização atual…",
   "@passengerGettingCurrentLocation": {

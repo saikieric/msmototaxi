@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../supabase/supabase_config.dart';
@@ -32,6 +33,17 @@ class AuthRepository {
   /// `profiles`（および`driver_profiles`）行を作成する。SupabaseのSMS
   /// プロバイダが設定され[signInWithPhoneOtp]に置き換わるまでは、
   /// ログイン画面がログイン済みセッションを得るための経路はこちら。
+  ///
+  /// TODO: [role] is entirely self-reported by the client — anyone can
+  /// call this and claim 'driver' with no verification. Don't treat an
+  /// anonymous session's role as proof of driver identity anywhere
+  /// (RLS policies, UI trust decisions) until this is replaced by real
+  /// phone-OTP verification. See the RLS note in CLAUDE.md.
+  /// TODO: [role]はクライアントの完全な自己申告であり、誰でもこれを呼んで
+  /// 'driver'を名乗れる（裏付けは無い）。実際の電話番号OTP認証に置き換わる
+  /// までは、匿名セッションのroleをドライバー本人であることの証明として
+  /// （RLSポリシーやUI側の信頼判断などで）扱わないこと。CLAUDE.mdのRLSに
+  /// 関する記載も参照。
   Future<AuthResponse> signInAnonymously({required String role}) {
     return _client.auth.signInAnonymously(data: {'role': role});
   }
@@ -57,3 +69,14 @@ class AuthRepository {
 
   Future<void> signOut() => _client.auth.signOut();
 }
+
+/// Riverpod provider for [AuthRepository], so widgets can get it via
+/// `ref.read`/`ref.watch` instead of the static [AuthRepository.instance]
+/// — this lets tests override it with a fake via `ProviderScope.overrides`.
+/// [AuthRepository]用のRiverpodプロバイダ。ウィジェットから静的な
+/// [AuthRepository.instance]の代わりに`ref.read`/`ref.watch`で取得できる
+/// ようにする — `ProviderScope.overrides`でテスト用のフェイクに
+/// 差し替え可能になる。
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  return AuthRepository(SupabaseConfig.client);
+});

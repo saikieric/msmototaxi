@@ -29,6 +29,15 @@ background and architecture.
    If no Supabase project exists yet, the app still runs with placeholder
    values in `.env`.
 
+   ログイン画面は匿名サインイン（`signInAnonymously`）を使うため、Supabase
+   Dashboardで有効化しておく必要がある: Authentication > Sign In / Up >
+   Anonymous を開き、"Allow anonymous sign-ins" を有効にする。これを
+   有効にしないと、ログインボタンを押すたびに失敗する。
+   The login screen uses anonymous sign-in (`signInAnonymously`), which
+   must be enabled in the Supabase Dashboard: go to Authentication > Sign
+   In / Up > Anonymous and turn on "Allow anonymous sign-ins". Without
+   this, every tap of the login button fails.
+
 3. Google Maps APIキーを設定 / Configure the Google Maps API key:
 
    乗客用ホーム画面（地図＋配車依頼UI）はGoogle Maps SDKを使う。プラット

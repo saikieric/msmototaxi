@@ -13,6 +13,7 @@
   "loginDriverSubtitle": "ドライバー用アプリ",
   "loginButton": "ログイン",
   "loginFailedMessage": "ログインに失敗しました: {error}",
+  "loginNotConnectedMessage": "サーバーに接続されていません。バックエンドを設定してください。",
 
   "passengerGettingCurrentLocation": "現在地を取得しています…",
   "passengerLocationServiceDisabled": "位置情報サービスが無効です",

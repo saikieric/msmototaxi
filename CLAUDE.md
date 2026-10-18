@@ -150,6 +150,29 @@ OTPログイン時と同様に`profiles`/`driver_profiles`を作成する。
 書き込みは既に動作する。配車依頼の作成に今も欠けているのはマッチング用
 Edge Functionであり、認証ではない。
 
+**Anonymous sign-in is unverified — `authenticated` no longer implies a
+verified human, and `role` is self-reported.** Anyone can call
+`signInAnonymously` from either flavor and claim `role: 'driver'`; there
+is no verification behind it. `supabase/migrations/20261019120000_restrict_unassigned_rides_to_approved_drivers.sql`
+narrows the `rides` RLS policy so unassigned rides (which expose a
+passenger's pickup/dropoff location) are only visible to a
+`driver_profiles.is_approved = true` row, not to every self-reported
+"driver". Any future RLS policy or client-side trust decision that
+branches on `role` must assume the anonymous path can forge that role
+until real phone-OTP verification replaces it — see the TODO on
+`AuthRepository.signInAnonymously`.
+
+**匿名サインインは未検証であり、`authenticated` はもはや「検証済みの
+人間」を意味しない。`role` は自己申告である。** どちらのflavorからでも
+誰でも `signInAnonymously` を呼んで `role: 'driver'` を名乗れる —
+その裏付けは何も無い。`supabase/migrations/20261019120000_restrict_unassigned_rides_to_approved_drivers.sql`
+は `rides` のRLSポリシーを絞り込み、未割当ride（乗客の乗車/降車位置が
+露出する）を `driver_profiles.is_approved = true` の行にのみ閲覧可能に
+した（自己申告だけの「ドライバー」には見せない）。`role` で分岐する
+今後のRLSポリシーやクライアント側の信頼判断は、実際の電話番号OTP認証に
+置き換わるまで、匿名パスがそのroleを偽装できることを前提にすること —
+`AuthRepository.signInAnonymously` のTODOも参照。
+
 **Supabase config is `.env`-driven with a graceful "unconfigured" state.**
 `core/supabase/supabase_config.dart` reads `SUPABASE_URL`/`SUPABASE_ANON_KEY`
 from `.env` (loaded as a Flutter asset, not compiled in) and falls back to

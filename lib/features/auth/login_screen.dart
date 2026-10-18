@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/auth/auth_repository.dart';
 import '../../core/locale/language_switcher_button.dart';
+import '../../core/supabase/supabase_config.dart';
 import '../../flavors.dart';
 import '../../l10n/generated/app_localizations.dart';
 
@@ -31,10 +32,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isSigningIn = false;
 
   Future<void> _signIn() async {
+    // `.env` unconfigured (no real Supabase project yet) — don't attempt a
+    // sign-in call that can only fail; tell the user instead.
+    // `.env`が未設定（実際のSupabaseプロジェクトがまだ無い）場合、失敗する
+    // しかないサインイン呼び出しを試みず、代わりにユーザーへ伝える。
+    if (!SupabaseConfig.isConfigured) {
+      final l10n = AppLocalizations.of(context)!;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.loginNotConnectedMessage)),
+      );
+      return;
+    }
+
     final flavor = AppConfig.instance.flavor;
     setState(() => _isSigningIn = true);
     try {
-      await AuthRepository.instance.signInAnonymously(
+      await ref.read(authRepositoryProvider).signInAnonymously(
         role: flavor == Flavor.driver ? 'driver' : 'passenger',
       );
       // No navigation call needed — app_router.dart's redirect re-evaluates
