@@ -4,8 +4,7 @@
 // スモークテスト: Supabase 未設定（.env がプレースホルダー）かつ未ログイン状態でも、
 // クラッシュせずログイン画面が表示されることを確認する。
 
-import 'dart:ui';
-
+import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -64,6 +63,55 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('MotoGo'), findsOneWidget);
-    expect(find.text('ログイン'), findsOneWidget);
+    expect(find.text('コードを送信'), findsOneWidget);
+    expect(find.text('携帯電話番号'), findsOneWidget);
+    // Anonymous sign-in is a dart-define fallback and stays off by default.
+    // 匿名サインインは dart-define のフォールバックで、既定では出さない。
+    expect(find.text('匿名でログイン（テスト）'), findsNothing);
+    // dotenv.testLoad left the env empty, so the button must not navigate.
+    // dotenv.testLoad で env は空のまま。ボタンは画面遷移させない。
+    expect(
+      find.text('バックエンド未接続です。.env に Supabase の設定を入れてください。'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Invalid phone shows a localized error and does not send', (
+    WidgetTester tester,
+  ) async {
+    // Non-placeholder values make the submit button active. The number
+    // below fails client-side, so Supabase is never called.
+    // プレースホルダー以外の値で送信ボタンを有効にする。下の番号は
+    // クライアント側で弾くので、Supabaseは呼ばれない。
+    dotenv.testLoad(
+      fileInput:
+          'SUPABASE_URL=https://example.supabase.co\n'
+          'SUPABASE_ANON_KEY=sb_publishable_test\n',
+    );
+    addTearDown(() => dotenv.testLoad(fileInput: ''));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localeControllerProvider.overrideWith(
+            () => LocaleController(prefs, const Locale('ja')),
+          ),
+        ],
+        child: const MotoGoApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), '123');
+    await tester.tap(find.text('コードを送信'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        '番号が正しくありません。市外局番付きのブラジルの携帯電話番号を入力してください（例: 13 99999-9999）。',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('SMSコード'), findsNothing);
   });
 }

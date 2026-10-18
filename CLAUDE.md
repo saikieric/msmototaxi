@@ -117,38 +117,35 @@ Riverpodの認証ストリームをgo_routerの `Listenable` ベースの
 `refreshListenable` に橋渡ししているため、ログイン/ログアウト時に
 手動でナビゲーションを呼ばなくてもリダイレクト判定が再評価される。
 
-**Login is anonymous Supabase auth, tagged with a role.** Phone-OTP login
-is implemented (`core/auth/auth_repository.dart`'s `signInWithPhoneOtp`/
-`verifyPhoneOtp`), but Supabase's SMS provider isn't configured yet, so
-the login screen's button instead calls `signInAnonymously` with
-`data: {'role': 'passenger' | 'driver'}` (role from the app flavor). This
-creates a **real** Supabase session — `handle_new_user` reads that role
-out of `raw_user_meta_data` to create `profiles`/`driver_profiles`, same
-as it would for a real OTP sign-in. `app_router.dart`'s redirect logic
-treats the user as signed in purely based on Supabase auth state (via
-`currentUserProvider`/`authStateProvider` in `core/auth/auth_state.dart`)
-— there is no separate dev-only bypass flag anymore. Screens past login
-(e.g. `PassengerHomeScreen`) run **with** a real `auth.uid()`, so writes
-to tables with an `auth.uid() = ...` RLS policy (see `rides`) work
-already; what's still missing for ride creation is the matching Edge
-Function, not auth.
+**Phone OTP is the login path.** The login screen collects a Brazilian
+mobile number, calls `signInWithPhoneOtp` with `data: {role: <flavor>}`
+(`core/auth/auth_repository.dart`), then `verifyPhoneOtp`. SMS is
+Supabase Auth's Twilio Verify provider; the Account SID, Auth Token, and
+Verify Service SID stay in the dashboard, not in the repo. The existing
+`handle_new_user` trigger reads `role` from `raw_user_meta_data` and
+inserts `profiles` (and `driver_profiles` for `driver`). Anonymous
+sign-in is a dev/test fallback only: `--dart-define=AUTH_ANONYMOUS=true`
+shows that button, and the default build does not. If `.env` still has
+the placeholder URL/key, submit stays disabled and the screen says the
+backend is not connected. Invalid numbers, wrong or expired codes, and
+the resend cooldown use strings in `app_pt.arb` / `app_ja.arb`. Ride
+creation is still a stub — matching is not implemented, even though RLS
+can now see a user.
 
-**ログインはロール付きの匿名Supabase認証。** 電話番号OTPログイン自体は
-実装済み（`core/auth/auth_repository.dart`の`signInWithPhoneOtp`/
-`verifyPhoneOtp`）だが、SupabaseのSMSプロバイダがまだ未設定のため、
-ログイン画面のボタンは代わりに `signInAnonymously` を
-`data: {'role': 'passenger' | 'driver'}`（roleはアプリのflavorから）付きで
-呼ぶ。これは**実際の**Supabaseセッションを作成する —
-`handle_new_user` がこのroleを`raw_user_meta_data`から読み取り、実際の
-OTPログイン時と同様に`profiles`/`driver_profiles`を作成する。
-`app_router.dart` のリダイレクトロジックは、純粋にSupabaseの認証状態
-（`core/auth/auth_state.dart`の`currentUserProvider`/`authStateProvider`
-経由）だけを見てログイン済みかどうかを判定する — 別の開発用バイパス
-フラグはもう存在しない。ログイン後の画面（`PassengerHomeScreen`等）は
-**実際の`auth.uid()`を持つ状態**で動いている。そのため
-`auth.uid() = ...` というRLSポリシー（`rides`参照）を持つテーブルへの
-書き込みは既に動作する。配車依頼の作成に今も欠けているのはマッチング用
-Edge Functionであり、認証ではない。
+**ログインは電話番号OTP。** ログイン画面はブラジルの携帯番号を受け取り、
+`data: {role: <flavor>}` 付きで `signInWithPhoneOtp`
+（`core/auth/auth_repository.dart`）を呼び、続けて `verifyPhoneOtp` を
+呼ぶ。SMSは Supabase Auth の Twilio Verify。Account SID、Auth Token、
+Verify Service SID はダッシュボードに置き、リポジトリには置かない。
+既存の `handle_new_user` トリガーが `raw_user_meta_data` の `role` を
+読んで `profiles`（`driver` なら `driver_profiles` も）を挿入する。
+匿名サインインは開発/テスト用のフォールバックだけで、
+`--dart-define=AUTH_ANONYMOUS=true` のときだけそのボタンが出る。既定の
+ビルドには出ない。`.env` がプレースホルダーの URL/キーのままだと、送信は
+無効になり、画面はバックエンド未接続と表示する。不正な番号、違うか
+期限切れのコード、再送の待ち時間は `app_pt.arb` / `app_ja.arb` の文言を
+使う。配車依頼の作成はまだスタブ — ユーザーは RLS から見えるが、
+マッチングは未実装。
 
 **Anonymous sign-in is unverified — `authenticated` no longer implies a
 verified human, and `role` is self-reported.** Anyone can call

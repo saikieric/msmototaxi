@@ -29,14 +29,15 @@ background and architecture.
    If no Supabase project exists yet, the app still runs with placeholder
    values in `.env`.
 
-   ログイン画面は匿名サインイン（`signInAnonymously`）を使うため、Supabase
-   Dashboardで有効化しておく必要がある: Authentication > Sign In / Up >
-   Anonymous を開き、"Allow anonymous sign-ins" を有効にする。これを
-   有効にしないと、ログインボタンを押すたびに失敗する。
-   The login screen uses anonymous sign-in (`signInAnonymously`), which
-   must be enabled in the Supabase Dashboard: go to Authentication > Sign
-   In / Up > Anonymous and turn on "Allow anonymous sign-ins". Without
-   this, every tap of the login button fails.
+   既定のログインは電話番号OTP（下記「ログインについて」）。匿名サインインは
+   `--dart-define=AUTH_ANONYMOUS=true` の開発/テスト用フォールバックで、
+   使うときは Dashboard の Authentication > Sign In / Up > Anonymous で
+   "Allow anonymous sign-ins" を有効にする。無効のままそのボタンを押すと失敗する。
+   The default login is phone OTP (see "About login" below). Anonymous
+   sign-in is a dev/test fallback behind `--dart-define=AUTH_ANONYMOUS=true`.
+   When using it, turn on "Allow anonymous sign-ins" under Authentication >
+   Sign In / Up > Anonymous. Without that, every tap of the anonymous
+   button fails.
 
 3. Google Maps APIキーを設定 / Configure the Google Maps API key:
 
@@ -82,22 +83,15 @@ background and architecture.
 
 ## 実行 / Running
 
-### ログインについて（匿名認証） / About login (anonymous auth)
+### ログインについて（電話番号OTP） / About login (phone OTP)
 
-電話番号OTPログインは実装済み（[core/auth/auth_repository.dart](lib/core/auth/auth_repository.dart)）だが、Supabase
-Dashboard側のSMSプロバイダ設定がまだ済んでいないため、現在ログイン画面の
-「ログイン」ボタンは実際のOTP認証の代わりに、flavorをroleとして付与した
-匿名Supabaseセッション（`signInAnonymously`）を作成する。これは実際の
-Supabaseセッションであり、`handle_new_user`トリガーが通常のOTPログイン時
-と同様に`profiles`/`driver_profiles`を作成する。SMS認証を設定したら、
-この画面を実際の電話番号/OTPフローに切り替えること。
-Phone-OTP login is implemented ([core/auth/auth_repository.dart](lib/core/auth/auth_repository.dart)), but since the
-SMS provider isn't configured in the Supabase Dashboard yet, the login
-screen's button instead creates an anonymous Supabase session
-(`signInAnonymously`) tagged with the flavor as its role. This is a real
-Supabase session — the `handle_new_user` trigger creates
-`profiles`/`driver_profiles` just as it would for a real OTP login. Once
-SMS auth is set up, switch the screen to the real phone/OTP flow.
+ログインはブラジルの携帯番号（`+55`）にSMSコードを送って確認する。`signInWithPhoneOtp` は flavor の `role` をユーザーメタデータに渡すので、既存の `handle_new_user` が `profiles`（ドライバーなら `driver_profiles` も）を作る。SMSは Supabase Dashboard の Twilio Verify（Authentication → Providers → Phone）。Account SID / Auth Token / Verify Service SID はダッシュボードにだけ置き、リポジトリには置かない。`.env` が未設定（プレースホルダー）のときは送信ボタンは無効で、未接続と表示する。
+
+匿名サインインは開発/テスト用のフォールバック。既定のビルドにはボタンが出ない。出すときは `--dart-define=AUTH_ANONYMOUS=true` を付け、Dashboard の Anonymous プロバイダも有効にする。
+
+Login sends an SMS code to a Brazilian mobile number (`+55`) and verifies it. `signInWithPhoneOtp` passes the flavor's `role` as user metadata, so the existing `handle_new_user` trigger creates `profiles` (and `driver_profiles` for a driver). SMS is Twilio Verify in the Supabase Dashboard (Authentication → Providers → Phone). The Account SID, Auth Token, and Verify Service SID belong in the dashboard only, not in the repo. While `.env` is still the placeholder, submit stays disabled and the screen says the backend is not connected.
+
+Anonymous sign-in is a dev/test fallback. The default build does not show that button. To show it, pass `--dart-define=AUTH_ANONYMOUS=true` and enable the Anonymous provider in the Dashboard.
 
 flavorごとにエントリポイントが分かれている（`lib/main_passenger.dart` /
 `lib/main_driver.dart`）。`lib/main.dart` は開発時の簡便のため乗客用flavorの
@@ -115,6 +109,10 @@ flutter run --flavor driver -t lib/main_driver.dart
 
 # 開発時の簡易起動（乗客用と同じ） / Quick dev run (same as passenger)
 flutter run
+
+# 匿名サインインのボタンも出す（既定は電話番号OTPのみ）
+# Also show the anonymous sign-in button (default is phone OTP only)
+flutter run -d chrome -t lib/main_passenger.dart --dart-define=AUTH_ANONYMOUS=true
 ```
 
 ### Android
@@ -172,17 +170,21 @@ flutter test
       Passenger home screen: Google Maps UI to pick a pickup point (device
       location / draggable) and dropoff point (tap). Actually submitting the
       ride request is still stubbed (see below).
-- [ ] 電話番号OTP認証の本設定（Supabase DashboardでのSMSプロバイダ設定）。
-      現在はログインボタンが代わりに匿名Supabaseセッションを作成する
-      （上記「ログインについて」参照）。
-      Real phone-OTP auth setup (SMS provider in Supabase Dashboard). Login
-      currently creates an anonymous Supabase session instead (see "About
-      login" above).
+- [ ] 電話番号OTPのダッシュボード設定（Authentication → Providers → Phone
+      で Twilio Verify。Account SID、Auth Token、Verify Service SID）。
+      アプリ側の送信/確認は実装済み（上記「ログインについて」参照）。
+      Twilio Verify credentials in the Supabase Dashboard
+      (Authentication → Providers → Phone: Account SID, Auth Token,
+      Verify Service SID). The app already sends and verifies the code
+      (see "About login" above).
 - [ ] 配車依頼の実データ書き込み・PostGISによるマッチングロジック
-      （Edge Functions）。認証自体は匿名セッションで既に満たされている。
+      （Edge Functions）。認証は電話番号OTP（または
+      `--dart-define=AUTH_ANONYMOUS=true` の匿名セッション）で
+      `auth.uid()` を満たす。残るのはマッチング。
       Actually writing ride requests & PostGIS-based matching logic (Edge
-      Functions). Auth itself is already satisfied via the anonymous
-      session.
+      Functions). Auth already supplies `auth.uid()` via phone OTP, or via
+      the anonymous session when built with
+      `--dart-define=AUTH_ANONYMOUS=true`. Matching is what remains.
 - [ ] 決済（Pix経由）
       Payments (via Pix)
 - [ ] iOS flavor設定（Mac環境が必要）

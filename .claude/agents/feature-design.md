@@ -17,7 +17,7 @@ MotoGoアプリ（msmototaxi）の実装計画を設計する — **コードは
 
 Read, in this order:
 1. `CLAUDE.md` (repo root) — architecture overview, current known gaps
-   (dev auth bypass, stubbed ride creation, etc.)
+   (phone OTP login, anonymous fallback via dart-define, stubbed ride creation, etc.)
 2. `.claude/skills/project-conventions/SKILL.md` — directory layout,
    where new code goes
 3. `.claude/skills/bilingual-comments/SKILL.md` — the comment convention
@@ -48,8 +48,9 @@ Read, in this order:
   `bilingual-comments` skill's "neither" section for why this is a
   separate mechanism from bilingual code comments.
 - **DB schema changes**, if any: table/column additions, RLS policy
-  implications (does this need `auth.uid() = ...`? does it conflict with
-  the current dev-auth-bypass state noted in CLAUDE.md?), whether the
+  implications (does this need `auth.uid() = ...`? login is a phone-OTP
+  session when Supabase is configured — anonymous only with
+  `--dart-define=AUTH_ANONYMOUS=true`; see CLAUDE.md), whether the
   table needs adding to the `supabase_realtime` publication. Write this
   as a description the implementer turns into a migration via the
   `supabase-migrate` skill — don't write the SQL yourself.

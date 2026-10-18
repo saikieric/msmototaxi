@@ -32,23 +32,99 @@
   "@loginDriverSubtitle": {
     "description": "Subtitle under the app name on the login screen, driver flavor."
   },
-  "loginButton": "Entrar",
-  "@loginButton": {
-    "description": "Login screen's submit button — creates an anonymous Supabase session, see AuthRepository.signInAnonymously."
+  "loginPhoneBanner": "Enviaremos um código por SMS para este celular.",
+  "@loginPhoneBanner": {
+    "description": "Banner on the login screen while phone OTP is the sign-in path."
   },
-  "loginFailedMessage": "Falha ao entrar: {error}",
-  "@loginFailedMessage": {
-    "description": "Snackbar shown when signInAnonymously fails (e.g. no network, backend unreachable).",
+  "loginPhoneLabel": "Celular",
+  "@loginPhoneLabel": {
+    "description": "Label on the phone number field. The field shows a +55 prefix; the user types the national number."
+  },
+  "loginPhoneHint": "13 99999-9999",
+  "@loginPhoneHint": {
+    "description": "Hint for the phone field: DDD plus the 9-digit mobile number, without the country code."
+  },
+  "loginSendCodeButton": "Enviar código",
+  "@loginSendCodeButton": {
+    "description": "Submits the phone number so Supabase sends an SMS OTP via Twilio Verify."
+  },
+  "loginCodeLabel": "Código SMS",
+  "@loginCodeLabel": {
+    "description": "Label on the 6-digit OTP field."
+  },
+  "loginCodeHint": "6 dígitos",
+  "@loginCodeHint": {
+    "description": "Hint on the OTP field."
+  },
+  "loginCodeSentTo": "Código enviado para {phone}",
+  "@loginCodeSentTo": {
+    "description": "Shown above the OTP field after a code was requested.",
+    "placeholders": {
+      "phone": {
+        "type": "String",
+        "description": "E.164 phone number the SMS was sent to."
+      }
+    }
+  },
+  "loginVerifyButton": "Confirmar código",
+  "@loginVerifyButton": {
+    "description": "Submits the SMS code to Supabase verifyOTP."
+  },
+  "loginResendCode": "Reenviar código",
+  "@loginResendCode": {
+    "description": "Requests another SMS code. Disabled during the resend cooldown."
+  },
+  "loginResendCooldown": "Reenviar em {seconds}s",
+  "@loginResendCooldown": {
+    "description": "Label on the resend control while the cooldown is running.",
+    "placeholders": {
+      "seconds": {
+        "type": "int",
+        "description": "Whole seconds left before another SMS can be requested."
+      }
+    }
+  },
+  "loginChangeNumber": "Alterar número",
+  "@loginChangeNumber": {
+    "description": "Returns from the code step to the phone step."
+  },
+  "loginErrorInvalidPhone": "Número inválido. Use um celular brasileiro com DDD, por exemplo 13 99999-9999.",
+  "@loginErrorInvalidPhone": {
+    "description": "Shown when the phone number is not a Brazilian mobile, or Supabase/Twilio rejects it as invalid."
+  },
+  "loginErrorWrongCode": "Código incorreto ou expirado. Tente novamente.",
+  "@loginErrorWrongCode": {
+    "description": "Shown when the SMS code is wrong or expired. Supabase reports both as otp_expired."
+  },
+  "loginErrorResendCooldown": "Aguarde um momento antes de pedir outro código.",
+  "@loginErrorResendCooldown": {
+    "description": "Shown when Supabase or Twilio refuses another SMS because the resend window has not elapsed."
+  },
+  "loginAnonymousBanner": "Modo de teste: o botão abaixo entra sem SMS. O login normal continua sendo por código.",
+  "@loginAnonymousBanner": {
+    "description": "Shown only when the app is built with --dart-define=AUTH_ANONYMOUS=true, above the anonymous fallback button."
+  },
+  "loginAnonymousButton": "Entrar anonimamente (teste)",
+  "@loginAnonymousButton": {
+    "description": "Dev/test fallback button. Visible only with --dart-define=AUTH_ANONYMOUS=true."
+  },
+  "loginNotConfigured": "O servidor não está conectado. Preencha as configurações do Supabase no arquivo .env.",
+  "@loginNotConfigured": {
+    "description": "Banner on the login screen when SUPABASE_URL / SUPABASE_ANON_KEY are still the placeholders, so the button stays disabled."
+  },
+  "loginError": "Falha ao entrar: {error}",
+  "@loginError": {
+    "description": "Shown when sign-in fails for a reason other than an invalid number, a wrong code, or the resend cooldown.",
     "placeholders": {
       "error": {
         "type": "String",
-        "description": "The underlying exception's string representation."
+        "description": "AuthException message or other error text returned by Supabase."
       }
     }
   },
   "loginNotConnectedMessage": "Não conectado ao servidor. Configure o backend para continuar.",
   "@loginNotConnectedMessage": {
-    "description": "Snackbar shown on the login button when SupabaseConfig.isConfigured is false (.env still has placeholder values), instead of attempting signInAnonymously."
+    "description": "Snackbar when a login action still runs while SupabaseConfig.isConfigured is false (.env has placeholder values), instead of calling Supabase. The banner uses loginNotConfigured; submit buttons stay disabled."
   },
 
   "passengerGettingCurrentLocation": "Obtendo localização atual…",
