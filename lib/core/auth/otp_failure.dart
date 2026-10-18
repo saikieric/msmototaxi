@@ -25,7 +25,7 @@ OtpFailure classifyOtpFailure(AuthException error, {required OtpAttempt attempt}
   final code = error.code ?? '';
   final message = error.message.toLowerCase();
 
-  if (_isResendCooldown(code, message, error.statusCode)) {
+  if (attempt == OtpAttempt.send && _isResendCooldown(code, message, error.statusCode)) {
     return OtpFailure.resendCooldown;
   }
   if (attempt == OtpAttempt.verify && _isWrongCode(code, message)) {

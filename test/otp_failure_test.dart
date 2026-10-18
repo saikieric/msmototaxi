@@ -17,6 +17,19 @@ void main() {
     expect(cooldownSecondsFromMessage(error.message), 47);
   });
 
+  test('does not treat a 429 on verify as a resend cooldown', () {
+    const error = AuthException(
+      'For security purposes, you can only request this after 47 seconds.',
+      statusCode: '429',
+      code: 'over_request_rate_limit',
+    );
+
+    expect(
+      classifyOtpFailure(error, attempt: OtpAttempt.verify),
+      isNot(OtpFailure.resendCooldown),
+    );
+  });
+
   test('maps a wrong or expired code on verify', () {
     const error = AuthException(
       'Token has expired or is invalid',
