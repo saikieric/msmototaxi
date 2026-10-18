@@ -105,10 +105,10 @@ node driver.mjs serve 8765 &
 node driver.mjs screenshot "http://localhost:8765" "screenshots/login.png"
 
 # 3. Click a point (pixel coords, 480x900 viewport) and screenshot the result
-# Coordinates below are for the login screen's dev-bypass button in ja
-# (device-default locale on this machine) — see Gotchas: this shifts with
-# locale/text length, so re-screenshot and re-measure if it misses.
-node driver.mjs click "http://localhost:8765" 240 607 "screenshots/passenger-home.png"
+# Coordinates below are the phone-OTP "Enviar código" button in pt on
+# 480x900. Locale and text length shift it — re-screenshot and re-measure
+# if it misses. A click with an empty number stays on the login screen.
+node driver.mjs click "http://localhost:8765" 239 627 "screenshots/login-error.png"
 ```
 
 Screenshots land wherever you point the output path (relative to the
@@ -233,9 +233,9 @@ flutter run                                                   # デフォルト�
 - **Pixel-coordinate clicks shift with locale** — the app is localized
   (pt default, ja supported; see `bilingual-comments` skill's "neither"
   section). Translated text is a different length, which can shift where
-  a button/banner lands vertically (the login screen's dev-bypass button
-  sits at y≈607 in ja but y≈616 in pt on this machine, due to the dev
-  banner wrapping to a different number of lines). This machine's OS
+  a button/banner lands vertically (the login screen's send-code button
+  was at about (239, 627) in pt on the 480×900 viewport; ja still shifts
+  it). This machine's OS
   locale is Japanese, so a fresh headless launch defaults to ja unless
   you click the language-switcher (globe icon, top-right, ~(460, 28)) to
   change it. Always re-screenshot after any locale change before reusing
@@ -244,9 +244,9 @@ flutter run                                                   # デフォルト�
   **ピクセル座標クリックは言語によってずれる** — アプリは多言語対応済み
   （デフォルトpt、ja対応 — `bilingual-comments` スキルの
   「どちらでもないもの」セクション参照）。翻訳後のテキストは長さが
-  異なるため、ボタン/バナーの縦位置がずれることがある（このマシンでは
-  ログイン画面の開発用バイパスボタンが、開発用バナーの折り返し行数の
-  違いによりjaでy≈607、ptでy≈616になる）。このマシンのOS言語は日本語
+  異なるため、ボタン/バナーの縦位置がずれることがある（電話番号OTPの
+  コード送信ボタンは、pt・480×900でおおよそ (239, 627)。jaではまだ
+  ずれる）。このマシンのOS言語は日本語
   なので、ヘッドレス起動直後はjaがデフォルトになる（言語切り替え —
   右上の🌐アイコン、おおよそ(460, 28) — をクリックしない限り）。言語を
   変更した後は、保存済みの座標を再利用する前に必ずスクリーンショットを

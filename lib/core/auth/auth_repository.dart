@@ -6,12 +6,23 @@ import '../supabase/supabase_config.dart';
 /// Thin wrapper around Supabase Auth.
 /// Supabase Authの薄いラッパー。
 ///
-/// Per slides.md, auth is by phone number or email (Supabase Auth). Phone
-/// OTP is the primary path for Registro drivers/passengers; email is a
-/// fallback (e.g. for testing).
-/// slides.md の通り、認証は電話番号またはメール（Supabase Auth）。
-/// Registroのドライバー・乗客には電話番号OTPを主経路とし、
-/// メールはテスト用途などのフォールバックとする。
+/// Phone OTP ([signInWithPhoneOtp] / [verifyPhoneOtp]) is the login path.
+/// [signInWithPhoneOtp] sends `data: {role}` so a new `auth.users` row
+/// carries the flavor in `raw_user_meta_data`. The existing
+/// `handle_new_user` trigger reads that and inserts `profiles` (and
+/// `driver_profiles` when the role is `driver`).
+/// ログイン経路は電話番号OTP（[signInWithPhoneOtp] / [verifyPhoneOtp]）。
+/// [signInWithPhoneOtp] は `data: {role}` を送り、新しい `auth.users` 行の
+/// `raw_user_meta_data` に flavor を載せる。既存の `handle_new_user`
+/// トリガーがそれを読んで `profiles` を挿入する（role が `driver` なら
+/// `driver_profiles` も）。
+///
+/// [signInAnonymously] keeps the anonymous-auth session
+/// (`signInAnonymously(data: {role})`). The login screen shows that button
+/// only for a build started with `--dart-define=AUTH_ANONYMOUS=true`.
+/// [signInAnonymously] は匿名認証のセッション
+/// （`signInAnonymously(data: {role})`）を残す。ログイン画面にそのボタンが
+/// 出るのは `--dart-define=AUTH_ANONYMOUS=true` で起動したビルドだけ。
 class AuthRepository {
   AuthRepository(this._client);
 
@@ -21,37 +32,22 @@ class AuthRepository {
 
   User? get currentUser => _client.auth.currentUser;
 
-  /// Creates a real (anonymous) Supabase session tagged with [role]
-  /// ('passenger' or 'driver', from the running app flavor). The
-  /// `handle_new_user` DB trigger reads this from `raw_user_meta_data` to
-  /// create the matching `profiles` (and `driver_profiles`) row. This is
-  /// the login screen's path to a signed-in session until Supabase's SMS
-  /// provider is configured and [signInWithPhoneOtp] takes over.
-  /// [role]（起動中のflavorに応じた 'passenger' または 'driver'）を付与した
-  /// 実際の（匿名）Supabaseセッションを作成する。`handle_new_user`
-  /// DBトリガーがこれを`raw_user_meta_data`から読み取り、対応する
-  /// `profiles`（および`driver_profiles`）行を作成する。SupabaseのSMS
-  /// プロバイダが設定され[signInWithPhoneOtp]に置き換わるまでは、
-  /// ログイン画面がログイン済みセッションを得るための経路はこちら。
+  /// Sends an SMS OTP to [phone] (E.164, e.g. +5513999999999).
+  /// [phone]（E.164、例: +5513999999999）にSMSのOTPを送る。
   ///
-  /// TODO: [role] is entirely self-reported by the client — anyone can
-  /// call this and claim 'driver' with no verification. Don't treat an
-  /// anonymous session's role as proof of driver identity anywhere
-  /// (RLS policies, UI trust decisions) until this is replaced by real
-  /// phone-OTP verification. See the RLS note in CLAUDE.md.
-  /// TODO: [role]はクライアントの完全な自己申告であり、誰でもこれを呼んで
-  /// 'driver'を名乗れる（裏付けは無い）。実際の電話番号OTP認証に置き換わる
-  /// までは、匿名セッションのroleをドライバー本人であることの証明として
-  /// （RLSポリシーやUI側の信頼判断などで）扱わないこと。CLAUDE.mdのRLSに
-  /// 関する記載も参照。
-  Future<AuthResponse> signInAnonymously({required String role}) {
-    return _client.auth.signInAnonymously(data: {'role': role});
-  }
-
-  /// Sends a one-time password to [phone] (E.164 format, e.g. +5513999999999).
-  /// [phone]（E.164形式、例: +5513999999999）にワンタイムパスワードを送信する。
-  Future<void> signInWithPhoneOtp(String phone) {
-    return _client.auth.signInWithOtp(phone: phone);
+  /// [role] must be `passenger` or `driver`. Supabase stores it as user
+  /// metadata on create; the signup trigger branches on it.
+  /// [role] は `passenger` か `driver`。Supabaseは作成時にユーザー
+  /// メタデータとして保存し、サインアップのトリガーがそれで分岐する。
+  Future<void> signInWithPhoneOtp({
+    required String phone,
+    required String role,
+  }) {
+    return _client.auth.signInWithOtp(
+      phone: phone,
+      channel: OtpChannel.sms,
+      data: {'role': role},
+    );
   }
 
   /// Verifies the OTP code sent by [signInWithPhoneOtp].
@@ -60,11 +56,32 @@ class AuthRepository {
     required String phone,
     required String otp,
   }) {
-    return _client.auth.verifyOTP(
-      type: OtpType.sms,
-      phone: phone,
-      token: otp,
-    );
+    return _client.auth.verifyOTP(type: OtpType.sms, phone: phone, token: otp);
+  }
+
+  /// Creates a real anonymous Supabase session tagged with [role]
+  /// ('passenger' or 'driver'). `handle_new_user` reads this from
+  /// `raw_user_meta_data` and inserts `profiles` (and `driver_profiles`).
+  /// The login screen calls this only when anonymous auth is compiled in
+  /// (`--dart-define=AUTH_ANONYMOUS=true`).
+  /// [role]（'passenger' または 'driver'）を付与した実際の匿名Supabase
+  /// セッションを作成する。`handle_new_user` がこれを `raw_user_meta_data`
+  /// から読み、`profiles`（および `driver_profiles`）を挿入する。
+  /// ログイン画面がこれを呼ぶのは、匿名認証をコンパイルしたときだけ
+  /// （`--dart-define=AUTH_ANONYMOUS=true`）。
+  ///
+  /// TODO: [role] is entirely self-reported by the client — anyone can
+  /// call this and claim 'driver' with no verification. Phone OTP is the
+  /// default login, but this fallback can still forge a role. Don't treat
+  /// an anonymous session's role as proof of driver identity anywhere
+  /// (RLS policies, UI trust decisions). See the RLS note in CLAUDE.md.
+  /// TODO: [role]はクライアントの完全な自己申告であり、誰でもこれを呼んで
+  /// 'driver'を名乗れる（裏付けは無い）。既定のログインは電話番号OTPだが、
+  /// このフォールバックは今もroleを偽装できる。匿名セッションのroleを
+  /// ドライバー本人であることの証明として（RLSポリシーやUI側の信頼判断
+  /// などで）扱わないこと。CLAUDE.mdのRLSに関する記載も参照。
+  Future<AuthResponse> signInAnonymously({required String role}) {
+    return _client.auth.signInAnonymously(data: {'role': role});
   }
 
   Future<void> signOut() => _client.auth.signOut();

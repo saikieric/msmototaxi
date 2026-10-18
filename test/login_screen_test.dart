@@ -1,10 +1,11 @@
-// Widget tests for LoginScreen's sign-in flow: button disabling while a
-// sign-in is pending, the failure snackbar, and that the role passed to
-// AuthRepository.signInAnonymously matches the active flavor.
+// Widget tests for LoginScreen's phone-OTP flow: the send button disables
+// while a request is pending, a failure is shown inline, and the role
+// passed to AuthRepository.signInWithPhoneOtp matches the active flavor.
 //
-// LoginScreenのサインインフローに関するウィジェットテスト: サインイン中の
-// ボタン無効化、失敗時のスナックバー表示、そしてAuthRepository.
-// signInAnonymouslyに渡されるroleが現在のflavorと一致することを確認する。
+// LoginScreenの電話番号OTPフローに関するウィジェットテスト: 送信中は
+// 送信ボタンが無効になること、失敗は画面内に表示されること、そして
+// AuthRepository.signInWithPhoneOtp に渡される role が現在の flavor と
+// 一致することを確認する。
 
 import 'dart:async';
 
@@ -21,15 +22,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Fake [AuthRepository] that records the [role] passed to
-/// [signInAnonymously] and lets a test control exactly when (and whether
+/// [signInWithPhoneOtp] and lets a test control exactly when (and whether
 /// successfully) that call completes.
-/// [signInAnonymously]に渡された[role]を記録し、その呼び出しがいつ・
+/// [signInWithPhoneOtp]に渡された[role]を記録し、その呼び出しがいつ・
 /// 成功/失敗のどちらで完了するかをテスト側から制御できるようにした
 /// 偽の[AuthRepository]。
 class _FakeAuthRepository extends AuthRepository {
   _FakeAuthRepository() : super(Supabase.instance.client);
 
   String? capturedRole;
+  String? capturedPhone;
   Object? failure;
   final _completer = Completer<void>();
 
@@ -42,10 +44,13 @@ class _FakeAuthRepository extends AuthRepository {
   }
 
   @override
-  Future<AuthResponse> signInAnonymously({required String role}) async {
+  Future<void> signInWithPhoneOtp({
+    required String phone,
+    required String role,
+  }) async {
     capturedRole = role;
+    capturedPhone = phone;
     await _completer.future;
-    return AuthResponse();
   }
 }
 
@@ -62,14 +67,15 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
 
-    // SupabaseConfig.isConfigured must be true here, otherwise _signIn
+    // SupabaseConfig.isConfigured must be true here, otherwise _sendCode
     // short-circuits before ever calling AuthRepository — use non-placeholder
-    // values so these tests exercise the real sign-in path.
+    // values so these tests exercise the real send path.
     // ここでは SupabaseConfig.isConfigured が true である必要がある。
-    // そうでないと_signInがAuthRepositoryを呼ぶ前に早期returnしてしまう —
-    // 実際のサインイン経路を検証するため、プレースホルダーではない値を使う。
+    // そうでないと_sendCodeがAuthRepositoryを呼ぶ前に早期returnしてしまう —
+    // 実際の送信経路を検証するため、プレースホルダーではない値を使う。
     dotenv.testLoad(
-      fileInput: 'SUPABASE_URL=https://fake.supabase.co\n'
+      fileInput:
+          'SUPABASE_URL=https://fake.supabase.co\n'
           'SUPABASE_ANON_KEY=fake-anon-key',
     );
     await Supabase.initialize(
@@ -102,14 +108,29 @@ void main() {
           locale: const Locale('ja'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: const LoginScreen(),
+          // A flavor key forces a fresh state. LoginScreen is otherwise const,
+          // so a second pumpWidget would keep the phone-step/code-step
+          // state from the previous flavor.
+          // flavorをkeyにして状態を作り直す。LoginScreenはconstなので、
+          // 2回目のpumpWidgetだと前のflavorの電話/コードステップが残る。
+          home: LoginScreen(key: ValueKey(flavor)),
         ),
       ),
     );
     await tester.pumpAndSettle();
   }
 
-  testWidgets('disables the login button while sign-in is pending', (
+  Future<void> enterMobileAndTapSend(WidgetTester tester) async {
+    // DDD 13 + a mobile (leading 9). The field's +55 prefix is decoration;
+    // the controller stores the national number.
+    // 市外局番13 + 携帯（先頭9）。+55 は装飾で、コントローラには国内番号が
+    // 入る。
+    await tester.enterText(find.byType(TextField), '13999999999');
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'コードを送信'));
+  }
+
+  testWidgets('disables the send button while the OTP request is pending', (
     WidgetTester tester,
   ) async {
     final fake = _FakeAuthRepository();
@@ -119,7 +140,7 @@ void main() {
       authRepository: fake,
     );
 
-    await tester.tap(find.byType(FilledButton));
+    await enterMobileAndTapSend(tester);
     // A single pump, not pumpAndSettle — the pending state shows an
     // indeterminate CircularProgressIndicator that never settles.
     // pumpAndSettleではなく1回だけpumpする — 保留中の状態は
@@ -133,7 +154,7 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('shows a snackbar when sign-in fails', (
+  testWidgets('shows an error when sending the code fails', (
     WidgetTester tester,
   ) async {
     final fake = _FakeAuthRepository()..failure = Exception('network error');
@@ -143,12 +164,12 @@ void main() {
       authRepository: fake,
     );
 
-    await tester.tap(find.byType(FilledButton));
+    await enterMobileAndTapSend(tester);
     await tester.pump();
     fake.complete();
     await tester.pumpAndSettle();
 
-    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.textContaining('network error'), findsOneWidget);
   });
 
   testWidgets('passes the role matching the active flavor', (
@@ -160,11 +181,12 @@ void main() {
       flavor: Flavor.passenger,
       authRepository: passengerFake,
     );
-    await tester.tap(find.byType(FilledButton));
+    await enterMobileAndTapSend(tester);
     await tester.pump();
     passengerFake.complete();
     await tester.pumpAndSettle();
     expect(passengerFake.capturedRole, 'passenger');
+    expect(passengerFake.capturedPhone, '+5513999999999');
 
     final driverFake = _FakeAuthRepository();
     await pumpLoginScreen(
@@ -172,7 +194,7 @@ void main() {
       flavor: Flavor.driver,
       authRepository: driverFake,
     );
-    await tester.tap(find.byType(FilledButton));
+    await enterMobileAndTapSend(tester);
     await tester.pump();
     driverFake.complete();
     await tester.pumpAndSettle();
