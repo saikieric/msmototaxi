@@ -49,17 +49,35 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   bool _isOnline = false;
   Timer? _locationTimer;
 
+  /// Tracks the driver's *latest* toggle intent, independent of how far
+  /// [_goOnline]'s permission checks have progressed. Needed because a
+  /// quick on→off tap can resolve _goOffline while _goOnline is still
+  /// awaiting a permission prompt; without this, _goOnline would resume
+  /// and start the timer even though the driver already asked to go
+  /// offline.
+  /// ドライバーの*最新の*切り替え意図を、[_goOnline]の権限チェックが
+  /// どこまで進んでいるかとは独立に追跡する。オン→オフを素早くタップすると
+  /// _goOnlineが権限プロンプトのawait中に_goOfflineが先に解決してしまう
+  /// 場合があるため必要 — これが無いと、ドライバーが既にオフラインを
+  /// 要求した後でも_goOnlineが再開してタイマーを開始してしまう。
+  bool _wantsOnline = false;
+
   Future<void> _signOut() => AuthRepository.instance.signOut();
 
   /// Turns the online toggle on: checks location access up front (so a
   /// denial shows an explanation instead of the switch silently doing
   /// nothing) and, once granted, starts [_locationTimer] pinging
-  /// immediately and then every [_locationPingInterval].
+  /// immediately and then every [_locationPingInterval]. Bails out
+  /// without starting anything if the driver toggled back offline
+  /// ([_wantsOnline] went false) while these checks were in flight.
   /// オンライン切り替えをオンにする: まず位置情報アクセスを確認し
   /// （拒否された場合にスイッチが無言で何もしないのではなく、理由を
   /// 表示するため）、許可されたら即座に1回pingしてから
   /// [_locationPingInterval] ごとに送信する[_locationTimer]を開始する。
+  /// このチェックの最中にドライバーがオフラインへ戻した
+  /// （[_wantsOnline]がfalseになった）場合は、何も開始せずに中断する。
   Future<void> _goOnline() async {
+    _wantsOnline = true;
     final l10n = AppLocalizations.of(context)!;
 
     if (!await Geolocator.isLocationServiceEnabled()) {
@@ -83,7 +101,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
       return;
     }
 
-    if (!mounted) return;
+    if (!mounted || !_wantsOnline) return;
     setState(() => _isOnline = true);
     unawaited(_sendLocationPing());
     _locationTimer = Timer.periodic(
@@ -94,11 +112,16 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
 
   /// Turns the online toggle off and stops [_locationTimer]. Also called
   /// from [dispose] so a driver who navigates away (e.g. signs out) while
-  /// online doesn't keep pinging in the background.
+  /// online doesn't keep pinging in the background. Clearing
+  /// [_wantsOnline] here is what stops an in-flight [_goOnline] (still
+  /// awaiting its permission checks) from starting the timer afterwards.
   /// オンライン切り替えをオフにし、[_locationTimer]を停止する。
   /// [dispose]からも呼ばれる — オンラインのままこの画面を離れる
   /// （例: ログアウト）場合でも、バックグラウンドでpingを続けないように。
+  /// ここで[_wantsOnline]をクリアすることで、実行中の（権限チェックを
+  /// await中の）[_goOnline]が後からタイマーを開始してしまうのを防ぐ。
   void _goOffline() {
+    _wantsOnline = false;
     _locationTimer?.cancel();
     _locationTimer = null;
     if (!mounted) return;
