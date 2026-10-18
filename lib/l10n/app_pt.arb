@@ -111,11 +111,59 @@
   },
   "passengerRequestRideButton": "Solicitar corrida",
   "@passengerRequestRideButton": {
-    "description": "Button that submits the ride request (currently a stub)."
+    "description": "Button that inserts a rides row with status requested."
   },
-  "passengerRequestRideStubMessage": "A solicitação de corrida ainda está em desenvolvimento (disponível após a autenticação e o pareamento com motoristas).",
-  "@passengerRequestRideStubMessage": {
-    "description": "Snackbar shown when tapping the (currently stubbed) request-ride button. See PassengerHomeScreen._requestRide."
+  "passengerCancelRideButton": "Cancelar solicitação",
+  "@passengerCancelRideButton": {
+    "description": "Button that sets the current requested ride to cancelled."
+  },
+  "passengerRideStatusRequested": "Corrida: solicitada",
+  "@passengerRideStatusRequested": {
+    "description": "Status line while the passenger's ride is requested and waiting for a driver."
+  },
+  "passengerRideStatusMatched": "Corrida: motorista encontrado",
+  "@passengerRideStatusMatched": {
+    "description": "Status line when a driver has been assigned to the ride."
+  },
+  "passengerRideStatusEnRoute": "Corrida: motorista a caminho",
+  "@passengerRideStatusEnRoute": {
+    "description": "Status line while the driver is heading to the pickup point."
+  },
+  "passengerRideStatusInProgress": "Corrida: em andamento",
+  "@passengerRideStatusInProgress": {
+    "description": "Status line while the passenger is on the trip."
+  },
+  "passengerRideStatusCompleted": "Corrida: concluída",
+  "@passengerRideStatusCompleted": {
+    "description": "Status line after the ride finishes normally."
+  },
+  "passengerRideStatusCancelled": "Corrida: cancelada",
+  "@passengerRideStatusCancelled": {
+    "description": "Status line after the passenger cancels a requested ride."
+  },
+  "passengerRequestRideNoSession": "Não há uma sessão ativa. Entre novamente.",
+  "@passengerRequestRideNoSession": {
+    "description": "Snackbar when the request button is tapped without a signed-in Supabase user."
+  },
+  "passengerRequestRideError": "Não foi possível solicitar a corrida: {error}",
+  "@passengerRequestRideError": {
+    "description": "Snackbar when inserting the ride or loading the current one fails.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "description": "PostgrestException message or other error text."
+      }
+    }
+  },
+  "passengerCancelRideError": "Não foi possível cancelar a corrida: {error}",
+  "@passengerCancelRideError": {
+    "description": "Snackbar when cancelling the requested ride fails.",
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "description": "PostgrestException message or other error text."
+      }
+    }
   },
 
   "driverOnlineStatus": "Online (recebendo solicitações)",

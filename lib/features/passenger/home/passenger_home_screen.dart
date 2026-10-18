@@ -5,11 +5,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/auth/auth_repository.dart';
 import '../../../core/locale/language_switcher_button.dart';
+import '../../../core/supabase/supabase_config.dart';
 import '../../../core/theme/motogo_theme.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import 'ride.dart';
+import 'ride_repository.dart';
 
 /// Registro, SP city center — used as the default map camera position
 /// before the device's actual location is available (or if it's denied).
@@ -150,7 +154,9 @@ Future<BitmapDescriptor> _createPinBitmap(Color color) async {
   const tailHalfWidth = _pinHeadRadius * 0.55;
 
   final head = Path()
-    ..addOval(Rect.fromCircle(center: const Offset(cx, cy), radius: _pinHeadRadius));
+    ..addOval(
+      Rect.fromCircle(center: const Offset(cx, cy), radius: _pinHeadRadius),
+    );
   final tail = Path()
     ..moveTo(cx - tailHalfWidth, cy)
     ..lineTo(cx + tailHalfWidth, cy)
@@ -180,22 +186,22 @@ Future<BitmapDescriptor> _createPinBitmap(Color color) async {
 ///
 /// Flow: pickup defaults to the device's current location (draggable);
 /// tapping the map sets the dropoff point. The request button is enabled
-/// once both are set.
-///
-/// Actually creating the ride (writing to Supabase `rides`) is still a stub
-/// — it needs the matching Edge Function, which doesn't exist yet. The
-/// RLS requirement (auth.uid() = passenger_id) is already satisfied, since
-/// login now creates a real anonymous Supabase session (see
-/// AuthRepository.signInAnonymously).
+/// once both are set and the passenger has no active ride. Request inserts
+/// a `rides` row (`status = requested`, `passenger_id = auth.uid()`) and
+/// the card shows that ride's status, kept current via Realtime. Cancel
+/// is offered only while the status is still `requested`. Matching is a
+/// separate, not-yet-built step — this screen does not assign a driver.
+/// `auth.uid()` comes from the anonymous session created by
+/// [AuthRepository.signInAnonymously].
 ///
 /// フロー: 乗車地点はデフォルトで現在地（ドラッグ可能）。地図をタップすると
-/// 降車地点を設定。両方設定されると依頼ボタンが有効になる。
-///
-/// 実際の配車依頼作成（Supabaseの`rides`への書き込み）はまだスタブ。
-/// マッチング用Edge Functionがまだ無いため。RLSの要件
-/// （auth.uid() = passenger_id）はログインが実際の匿名Supabaseセッションを
-/// 作成するようになった（AuthRepository.signInAnonymously参照）ため、既に
-/// 満たされている。
+/// 降車地点を設定。両方が設定され、進行中の依頼が無いとき依頼ボタンが
+/// 有効になる。依頼は `rides` に1行挿入する（`status = requested`、
+/// `passenger_id = auth.uid()`）。カードはその配車の状態を表示し、
+/// Realtime で追従する。キャンセルは状態がまだ `requested` の間だけ。
+/// マッチングは別の未実装の段で、この画面はドライバーを割り当てない。
+/// `auth.uid()` は [AuthRepository.signInAnonymously] が作る匿名セッション
+/// から来る。
 class PassengerHomeScreen extends ConsumerStatefulWidget {
   const PassengerHomeScreen({super.key});
 
@@ -247,12 +253,22 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
   // 種類を保持する。これにより、バナー表示中に言語が切り替わっても
   // （例: LanguageSwitcherButton経由）現在の言語でメッセージを組み直せる。
   _LocationError? _locationError;
+  // Held until the first active-ride lookup finishes so a tap cannot insert
+  // a second row before we know one already exists.
+  // 進行中の依頼があるか最初の検索が終わるまで保持する。既にある行を
+  // 知る前にタップで2件目を挿入しないため。
+  bool _loadingActiveRide = true;
+  bool _isSubmitting = false;
+  Ride? _ride;
+  RealtimeChannel? _rideChannel;
+  final RideRepository _rides = RideRepository.instance;
 
   @override
   void initState() {
     super.initState();
     _initPickupFromDeviceLocation();
     _loadMarkerIcons();
+    _loadActiveRide();
   }
 
   Future<void> _loadMarkerIcons() async {
@@ -283,8 +299,47 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
 
   @override
   void dispose() {
+    _stopWatching();
     _mapController?.dispose();
     super.dispose();
+  }
+
+  void _stopWatching() {
+    final channel = _rideChannel;
+    _rideChannel = null;
+    if (channel == null) return;
+    SupabaseConfig.client.removeChannel(channel);
+  }
+
+  void _watchRide(String rideId) {
+    _stopWatching();
+    _rideChannel = _rides.watch(rideId, (ride) {
+      if (!mounted) return;
+      setState(() => _ride = ride);
+    });
+  }
+
+  Future<void> _loadActiveRide() async {
+    try {
+      final userId = AuthRepository.instance.currentUser?.id;
+      if (userId == null) return;
+      final ride = await _rides.findActive(userId);
+      if (!mounted || ride == null) return;
+      setState(() => _ride = ride);
+      _watchRide(ride.id);
+    } catch (e) {
+      // This runs unprompted in initState, not from a user action, so a
+      // transient failure (offline, unconfigured backend) degrades to "no
+      // active ride" instead of popping a snackbar on every screen open —
+      // same convention as the location-permission handling above.
+      // これはユーザー操作ではなくinitStateから無条件に走るため、一時的な
+      // 失敗（オフライン、未設定のバックエンド）は画面を開くたびに
+      // スナックバーを出すのではなく「進行中の依頼なし」として縮退する —
+      // 上の位置情報権限の扱いと同じ方針。
+      debugPrint('PassengerHomeScreen._loadActiveRide failed: $e');
+    } finally {
+      if (mounted) setState(() => _loadingActiveRide = false);
+    }
   }
 
   /// Animates the camera to [_pickupLocation] at a zoom close enough that
@@ -406,15 +461,64 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
 
   Future<void> _signOut() => AuthRepository.instance.signOut();
 
-  void _requestRide() {
+  Future<void> _requestRide() async {
     final l10n = AppLocalizations.of(context)!;
-    // TODO: Insert into Supabase `rides` once real auth + the matching Edge
-    // Function exist (see class doc comment above).
-    // TODO: 実認証とマッチング用Edge Functionが揃ったら、Supabaseの
-    // `rides` へ実際に書き込む（クラスのdocコメント参照）。
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.passengerRequestRideStubMessage)),
-    );
+    final pickup = _pickupLocation;
+    final dropoff = _dropoffLocation;
+    final userId = AuthRepository.instance.currentUser?.id;
+    if (pickup == null || dropoff == null || _isSubmitting) return;
+    if (userId == null) {
+      _showRideError(l10n.passengerRequestRideNoSession);
+      return;
+    }
+    if (_ride?.isActive ?? false) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      final ride = await _rides.create(
+        passengerId: userId,
+        pickupLatitude: pickup.latitude,
+        pickupLongitude: pickup.longitude,
+        dropoffLatitude: dropoff.latitude,
+        dropoffLongitude: dropoff.longitude,
+      );
+      if (!mounted) return;
+      setState(() => _ride = ride);
+      _watchRide(ride.id);
+    } catch (e) {
+      if (!mounted) return;
+      _showRideError(l10n.passengerRequestRideError(_errorText(e)));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _cancelRide() async {
+    final l10n = AppLocalizations.of(context)!;
+    final ride = _ride;
+    if (ride == null || !ride.canCancel || _isSubmitting) return;
+
+    setState(() => _isSubmitting = true);
+    try {
+      final updated = await _rides.cancel(ride.id);
+      if (!mounted) return;
+      setState(() => _ride = updated);
+    } catch (e) {
+      if (!mounted) return;
+      _showRideError(l10n.passengerCancelRideError(_errorText(e)));
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  void _showRideError(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _errorText(Object error) {
+    if (error is PostgrestException) return error.message;
+    return error.toString();
   }
 
   @override
@@ -568,9 +672,8 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
                             radius: _pickupRadiusMeters,
                             strokeWidth: 2,
                             strokeColor: Theme.of(context).colorScheme.primary,
-                            fillColor: Theme.of(
-                              context,
-                            ).colorScheme.primary.withValues(alpha: 0.12),
+                            fillColor: Theme.of(context).colorScheme.primary
+                                .withValues(alpha: 0.12),
                           ),
                         },
                   // Note: intentionally NOT using GoogleMap's built-in
@@ -652,10 +755,9 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
                       padding: const EdgeInsets.only(left: 22),
                       child: Text(
                         l10n.passengerPickupRadiusHint,
-                        style: Theme.of(context).textTheme.bodySmall
-                            ?.copyWith(
-                              color: Theme.of(context).colorScheme.outline,
-                            ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
                       ),
                     ),
                   const SizedBox(height: 4),
@@ -666,14 +768,16 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
                         ? l10n.passengerDropoffNotSet
                         : l10n.passengerDropoffSet,
                   ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed:
-                        (_pickupLocation != null && _dropoffLocation != null)
-                        ? _requestRide
-                        : null,
-                    icon: const Icon(Icons.motorcycle),
-                    label: Text(l10n.passengerRequestRideButton),
+                  RideRequestPanel(
+                    ride: _ride,
+                    canRequest:
+                        _pickupLocation != null &&
+                        _dropoffLocation != null &&
+                        !_loadingActiveRide &&
+                        !(_ride?.isActive ?? false),
+                    isSubmitting: _isSubmitting,
+                    onRequest: _requestRide,
+                    onCancel: _cancelRide,
                   ),
                 ],
               ),
@@ -683,6 +787,87 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
       ),
     );
   }
+}
+
+/// Status line plus the request or cancel button under the map.
+/// 地図の下に置く、状態表示と依頼またはキャンセルのボタン。
+///
+/// Cancel replaces the request button only while [Ride.canCancel] is true.
+/// Any other active status leaves the request button disabled via
+/// [canRequest], so the passenger does not insert a second row.
+/// キャンセルが依頼ボタンに置き換わるのは [Ride.canCancel] が真の間だけ。
+/// それ以外の進行中ステータスでは [canRequest] 経由で依頼ボタンを無効にし、
+/// 乗客が2件目を挿入しないようにする。
+class RideRequestPanel extends StatelessWidget {
+  const RideRequestPanel({
+    super.key,
+    required this.ride,
+    required this.canRequest,
+    required this.isSubmitting,
+    required this.onRequest,
+    required this.onCancel,
+  });
+
+  final Ride? ride;
+  final bool canRequest;
+  final bool isSubmitting;
+  final VoidCallback onRequest;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final ride = this.ride;
+    final showCancel = ride != null && ride.canCancel;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 12),
+        if (ride != null) ...[
+          _RideStatusLine(
+            icon: Icons.motorcycle,
+            color: Theme.of(context).colorScheme.primary,
+            label: _rideStatusLabel(l10n, ride.status),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (showCancel)
+          OutlinedButton.icon(
+            onPressed: isSubmitting ? null : onCancel,
+            icon: _rideButtonIcon(isSubmitting, Icons.close),
+            label: Text(l10n.passengerCancelRideButton),
+          )
+        else
+          FilledButton.icon(
+            onPressed: (!canRequest || isSubmitting) ? null : onRequest,
+            icon: _rideButtonIcon(isSubmitting, Icons.motorcycle),
+            label: Text(l10n.passengerRequestRideButton),
+          ),
+      ],
+    );
+  }
+}
+
+String _rideStatusLabel(AppLocalizations l10n, RideStatus status) {
+  return switch (status) {
+    RideStatus.requested => l10n.passengerRideStatusRequested,
+    RideStatus.matched => l10n.passengerRideStatusMatched,
+    RideStatus.enRoute => l10n.passengerRideStatusEnRoute,
+    RideStatus.inProgress => l10n.passengerRideStatusInProgress,
+    RideStatus.completed => l10n.passengerRideStatusCompleted,
+    RideStatus.cancelled => l10n.passengerRideStatusCancelled,
+  };
+}
+
+Widget _rideButtonIcon(bool isSubmitting, IconData icon) {
+  if (!isSubmitting) return Icon(icon);
+  return const SizedBox(
+    width: 18,
+    height: 18,
+    child: CircularProgressIndicator(strokeWidth: 2),
+  );
 }
 
 class _RideStatusLine extends StatelessWidget {
