@@ -141,5 +141,13 @@
   "driverNavigateWithWazeStubMessage": "A navegação pelo Waze ficará disponível assim que uma corrida for aceita (o pareamento de corridas ainda está em desenvolvimento).",
   "@driverNavigateWithWazeStubMessage": {
     "description": "Snackbar shown when tapping the (currently stubbed, no ride data yet) Waze navigation button on the driver screen."
+  },
+  "driverLocationServiceDisabledMessage": "Não foi possível ficar online: o serviço de localização está desativado.",
+  "@driverLocationServiceDisabledMessage": {
+    "description": "Snackbar shown when the driver tries to go online but the device's location service (GPS) is off."
+  },
+  "driverLocationPermissionDeniedMessage": "Não foi possível ficar online: a permissão de localização não foi concedida.",
+  "@driverLocationPermissionDeniedMessage": {
+    "description": "Snackbar shown when the driver tries to go online but location permission is denied."
   }
 }
