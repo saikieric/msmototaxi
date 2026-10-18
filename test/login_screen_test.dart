@@ -108,7 +108,12 @@ void main() {
           locale: const Locale('ja'),
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          home: const LoginScreen(),
+          // A flavor key forces a fresh state. LoginScreen is otherwise const,
+          // so a second pumpWidget would keep the phone-step/code-step
+          // state from the previous flavor.
+          // flavorをkeyにして状態を作り直す。LoginScreenはconstなので、
+          // 2回目のpumpWidgetだと前のflavorの電話/コードステップが残る。
+          home: LoginScreen(key: ValueKey(flavor)),
         ),
       ),
     );
