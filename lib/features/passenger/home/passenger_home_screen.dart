@@ -8,14 +8,9 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../../../core/auth/auth_repository.dart';
 import '../../../core/locale/language_switcher_button.dart';
+import '../../../core/location/registro_city_center.dart';
 import '../../../core/theme/motogo_theme.dart';
 import '../../../l10n/generated/app_localizations.dart';
-
-/// Registro, SP city center — used as the default map camera position
-/// before the device's actual location is available (or if it's denied).
-/// Registro市（サンパウロ州）中心部の座標。実際の現在地が取得できるまで
-/// （または権限が拒否された場合）の初期カメラ位置に使う。
-const _registroCityCenter = LatLng(-24.4950, -47.8433);
 
 /// How far the pickup pin can be adjusted from the device's actual GPS fix.
 /// Drawn on the map as a circle (see `build()`'s `circles:`) so the limit is
@@ -528,7 +523,7 @@ class _PassengerHomeScreenState extends ConsumerState<PassengerHomeScreen> {
               children: [
                 GoogleMap(
                   initialCameraPosition: const CameraPosition(
-                    target: _registroCityCenter,
+                    target: registroCityCenter,
                     zoom: 14,
                   ),
                   onMapCreated: (controller) {
